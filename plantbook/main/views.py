@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
-from .models import Plant, PlantDetail, Observation, PlantPhoto, Profile, Comment
+from .models import Plant, PlantDetail, Observation, PlantPhoto, Profile, Comment, Message
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import json
@@ -435,3 +435,64 @@ def delete_plant(request, plant_id):
             messages.error(request, f'Error deleting plant: {str(e)}')
     
     return redirect('main:home')
+
+@login_required
+def get_messages(request):
+    """Get all messages for the current user."""
+    messages = Message.objects.filter(
+        Q(sender=request.user) | Q(recipient=request.user)
+    ).select_related('sender', 'recipient')
+    
+    messages_data = [{
+        'id': msg.id,
+        'content': msg.content,
+        'sender': msg.sender.username,
+        'recipient': msg.recipient.username,
+        'timestamp': msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+        'is_read': msg.is_read,
+        'is_sent': msg.sender == request.user
+    } for msg in messages]
+    
+    return JsonResponse({'messages': messages_data})
+
+@login_required
+@require_POST
+def send_message(request):
+    """Send a new message."""
+    try:
+        data = json.loads(request.body)
+        recipient = User.objects.get(username=data['recipient'])
+        content = data['content']
+        
+        message = Message.objects.create(
+            sender=request.user,
+            recipient=recipient,
+            content=content
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': {
+                'id': message.id,
+                'content': message.content,
+                'sender': message.sender.username,
+                'recipient': message.recipient.username,
+                'timestamp': message.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                'is_read': message.is_read,
+                'is_sent': True
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+@login_required
+@require_POST
+def mark_message_read(request, message_id):
+    """Mark a message as read."""
+    try:
+        message = Message.objects.get(id=message_id, recipient=request.user)
+        message.is_read = True
+        message.save()
+        return JsonResponse({'status': 'success'})
+    except Message.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Message not found'}, status=404)

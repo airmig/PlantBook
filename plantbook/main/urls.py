@@ -27,4 +27,7 @@ urlpatterns = [
     path('plant/<int:plant_id>/delete-detail/<int:detail_id>/', views.delete_detail, name='delete_detail'),
     path('plant/<int:plant_id>/delete-observation/<int:observation_id>/', views.delete_observation, name='delete_observation'),
     path('plant/<int:plant_id>/delete-photo/<int:photo_id>/', views.delete_photo, name='delete_photo'),
+    path('messages/', views.get_messages, name='get_messages'),
+    path('messages/send/', views.send_message, name='send_message'),
+    path('messages/<int:message_id>/read/', views.mark_message_read, name='mark_message_read'),
 ] 
