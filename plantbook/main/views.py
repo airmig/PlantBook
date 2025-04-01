@@ -17,7 +17,7 @@ from .utils import trefle_api
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.db.models import Count
-from .forms import PlantForm
+from .forms import PlantForm, ObservationForm, PhotoForm
 
 @ensure_csrf_cookie
 def register(request):
@@ -101,40 +101,39 @@ def home(request):
 def upload_plant(request):
     """Handle plant upload and creation."""
     if request.method == 'POST':
-        try:
-            # Get plant data from form
-            name = request.POST.get('name')
-            scientific_name = request.POST.get('scientific_name')
-            image = request.FILES.get('image')
-            
-            # Create the plant
-            plant = Plant.objects.create(
-                user=request.user,
-                name=name,
-                scientific_name=scientific_name,
-                image=image
-            )
-            
-            # Handle plant details
-            detail_headers = request.POST.getlist('detail_header[]')
-            detail_information = request.POST.getlist('detail_information[]')
-            
-            for header, info in zip(detail_headers, detail_information):
-                if header and info:
-                    PlantDetail.objects.create(
-                        plant=plant,
-                        header=header,
-                        information=info
-                    )
-            
-            messages.success(request, 'Plant uploaded successfully!')
-            return redirect('main:plant_detail', plant_id=plant.id)
-            
-        except Exception as e:
-            messages.error(request, f'Error uploading plant: {str(e)}')
+        form = PlantForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                plant = form.save(commit=False)
+                plant.user = request.user
+                plant.save()
+                
+                # Handle plant details
+                detail_headers = request.POST.getlist('detail_header[]')
+                detail_information = request.POST.getlist('detail_information[]')
+                
+                for header, info in zip(detail_headers, detail_information):
+                    if header and info:
+                        PlantDetail.objects.create(
+                            plant=plant,
+                            header=header,
+                            information=info
+                        )
+                
+                messages.success(request, 'Plant uploaded successfully!')
+                return redirect('main:plant_detail', plant_id=plant.id)
+                
+            except Exception as e:
+                messages.error(request, f'Error uploading plant: {str(e)}')
+                return redirect('main:upload_plant')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
             return redirect('main:upload_plant')
     
-    return render(request, 'main/upload_plant.html')
+    form = PlantForm()
+    return render(request, 'main/upload_plant.html', {'form': form})
 
 def plant_detail(request, plant_id):
     """Display detailed information about a specific plant."""
@@ -145,12 +144,18 @@ def plant_detail(request, plant_id):
         photos = PlantPhoto.objects.filter(plant=plant).order_by('-created_at')
         comments = Comment.objects.filter(plant=plant).order_by('-created_at')
         
+        # Create forms for observations and photos
+        observation_form = ObservationForm()
+        photo_form = PhotoForm()
+        
         context = {
             'plant': plant,
             'details': details,
             'observations': observations,
             'photos': photos,
             'comments': comments,
+            'observation_form': observation_form,
+            'photo_form': photo_form,
         }
         return render(request, 'main/plant_detail.html', context)
     except Plant.DoesNotExist:
@@ -163,18 +168,16 @@ def add_observation(request, plant_id):
     plant = get_object_or_404(Plant, id=plant_id, user=request.user)
     
     if request.method == 'POST':
-        note = request.POST.get('note')
-        image = request.FILES.get('image')
-        
-        if note:
-            Observation.objects.create(
-                plant=plant,
-                note=note,
-                image=image
-            )
+        form = ObservationForm(request.POST, request.FILES)
+        if form.is_valid():
+            observation = form.save(commit=False)
+            observation.plant = plant
+            observation.save()
             messages.success(request, 'Observation added successfully!')
         else:
-            messages.error(request, 'Please add a note for your observation.')
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
             
     return redirect('main:plant_detail', plant_id=plant.id)
 
@@ -184,18 +187,16 @@ def add_photo(request, plant_id):
     plant = get_object_or_404(Plant, id=plant_id, user=request.user)
     
     if request.method == 'POST':
-        image = request.FILES.get('image')
-        caption = request.POST.get('caption', '')
-        
-        if image:
-            PlantPhoto.objects.create(
-                plant=plant,
-                image=image,
-                caption=caption
-            )
+        form = PhotoForm(request.POST, request.FILES)
+        if form.is_valid():
+            photo = form.save(commit=False)
+            photo.plant = plant
+            photo.save()
             messages.success(request, 'Photo added successfully!')
         else:
-            messages.error(request, 'Please select a photo to upload.')
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
             
     return redirect('main:plant_detail', plant_id=plant.id)
 
@@ -419,3 +420,18 @@ def delete_photo(request, plant_id, photo_id):
     else:
         messages.error(request, 'You do not have permission to delete this photo.')
     return redirect('main:plant_detail', plant_id=plant_id)
+
+@login_required
+def delete_plant(request, plant_id):
+    """Delete a plant and all its associated data."""
+    plant = get_object_or_404(Plant, id=plant_id, user=request.user)
+    
+    if request.method == 'POST':
+        try:
+            # Delete the plant (this will cascade delete all related objects)
+            plant.delete()
+            messages.success(request, 'Plant deleted successfully!')
+        except Exception as e:
+            messages.error(request, f'Error deleting plant: {str(e)}')
+    
+    return redirect('main:home')

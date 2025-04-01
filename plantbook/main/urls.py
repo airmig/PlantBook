@@ -14,6 +14,7 @@ urlpatterns = [
     path('search-plants-api/', views.search_plants_api, name='search_plants_api'),
     path('plant/<int:plant_id>/', views.plant_detail, name='plant_detail'),
     path('plant/<int:plant_id>/edit/', views.edit_plant, name='edit_plant'),
+    path('plant/<int:plant_id>/delete/', views.delete_plant, name='delete_plant'),
     path('plant/<int:plant_id>/add-observation/', views.add_observation, name='add_observation'),
     path('plant/<int:plant_id>/add-photo/', views.add_photo, name='add_photo'),
     path('plant/<int:plant_id>/add-comment/', views.add_comment, name='add_comment'),
