@@ -43,20 +43,20 @@
 
         <div class="plant-content">
             <div class="tab-buttons">
-                <button class="tab-button active" data-tab="details">
+                <button class="tab-button {% if active_tab == 'details' %}active{% endif %}" data-tab="details">
                     <i class="fas fa-info-circle"></i> Details
                 </button>
-                <button class="tab-button" data-tab="observations">
+                <button class="tab-button {% if active_tab == 'observations' %}active{% endif %}" data-tab="observations">
                     <i class="fas fa-clipboard-list"></i> Observations
                 </button>
-                <button class="tab-button" data-tab="photos">
+                <button class="tab-button {% if active_tab == 'photos' %}active{% endif %}" data-tab="photos">
                     <i class="fas fa-images"></i> Photos
                 </button>
-                <button class="tab-button" data-tab="comments">
+                <button class="tab-button {% if active_tab == 'comments' %}active{% endif %}" data-tab="comments">
                     <i class="fas fa-comments"></i> Comments
                 </button>
                 {% if user == plant.user %}
-                    <button class="tab-button" data-tab="settings">
+                    <button class="tab-button {% if active_tab == 'settings' %}active{% endif %}" data-tab="settings">
                         <i class="fas fa-cog"></i> Settings
                     </button>
                 {% endif %}
@@ -64,7 +64,7 @@
 
             <div class="tab-content">
                 <!-- Details Tab -->
-                <div class="tab-pane active" id="details">
+                <div class="tab-pane {% if active_tab == 'details' %}active{% endif %}" id="details">
                     <div class="plant-details">
                         <h3>Plant Details</h3>
                         {% if details %}
@@ -93,6 +93,7 @@
                         {% if user.is_authenticated and user == plant.user %}
                             <form method="post" action="{% url 'main:add_detail' plant.id %}" class="add-detail-form mt-4">
                                 {% csrf_token %}
+                                <input type="hidden" name="active_tab" value="details">
                                 <div class="form-group">
                                     <label for="header">Detail Title</label>
                                     <input type="text" name="header" id="header" class="form-control" required placeholder="e.g., Watering Schedule, Light Requirements">
@@ -108,7 +109,7 @@
                 </div>
 
                 <!-- Observations Tab -->
-                <div class="tab-pane" id="observations">
+                <div class="tab-pane {% if active_tab == 'observations' %}active{% endif %}" id="observations">
                     <div class="observations mt-4">
                         <h3>Observations</h3>
                         {% if observations %}
@@ -144,6 +145,7 @@
                         {% if user.is_authenticated and user == plant.user %}
                             <form method="post" action="{% url 'main:add_observation' plant.id %}" class="add-observation-form mt-4" enctype="multipart/form-data">
                                 {% csrf_token %}
+                                <input type="hidden" name="active_tab" value="observations">
                                 {% for field in observation_form %}
                                     <div class="form-group">
                                         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -167,7 +169,7 @@
                 </div>
 
                 <!-- Photos Tab -->
-                <div class="tab-pane" id="photos">
+                <div class="tab-pane {% if active_tab == 'photos' %}active{% endif %}" id="photos">
                     <div class="photos mt-4">
                         <h3>Photos</h3>
                         {% if photos %}
@@ -196,6 +198,7 @@
                         {% if user.is_authenticated and user == plant.user %}
                             <form method="post" action="{% url 'main:add_photo' plant.id %}" class="add-photo-form mt-4" enctype="multipart/form-data">
                                 {% csrf_token %}
+                                <input type="hidden" name="active_tab" value="photos">
                                 {% for field in photo_form %}
                                     <div class="form-group">
                                         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -219,7 +222,7 @@
                 </div>
 
                 <!-- Comments Tab -->
-                <div class="tab-pane" id="comments">
+                <div class="tab-pane {% if active_tab == 'comments' %}active{% endif %}" id="comments">
                     <div class="plant-comments">
                         <h3>Comments</h3>
                         {% if comments %}
@@ -260,6 +263,7 @@
                         {% if user.is_authenticated %}
                             <form method="post" action="{% url 'main:add_comment' plant.id %}" class="add-comment-form">
                                 {% csrf_token %}
+                                <input type="hidden" name="active_tab" value="comments">
                                 <div class="form-group">
                                     <label for="comment">Add a Comment</label>
                                     <textarea name="content" id="comment" required placeholder="Write your comment here..."></textarea>
@@ -273,7 +277,7 @@
                 </div>
 
                 <!-- Settings Tab -->
-                <div class="tab-pane" id="settings">
+                <div class="tab-pane {% if active_tab == 'settings' %}active{% endif %}" id="settings">
                     <div class="settings-section">
                         <h3>Plant Settings</h3>
                         {% if user == plant.user %}
@@ -1278,17 +1282,44 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabPanes = document.querySelectorAll('.tab-pane');
 
+    // Function to switch tabs
+    function switchTab(tabId) {
+        // Remove active class from all buttons and panes
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        tabPanes.forEach(pane => pane.classList.remove('active'));
+
+        // Add active class to selected button and pane
+        const selectedButton = document.querySelector(`[data-tab="${tabId}"]`);
+        const selectedPane = document.getElementById(tabId);
+        
+        if (selectedButton && selectedPane) {
+            selectedButton.classList.add('active');
+            selectedPane.classList.add('active');
+            // Update URL hash without scrolling
+            history.pushState(null, null, `#${tabId}`);
+        }
+    }
+
+    // Handle tab button clicks
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
-            // Remove active class from all buttons and panes
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabPanes.forEach(pane => pane.classList.remove('active'));
-
-            // Add active class to clicked button and corresponding pane
-            button.classList.add('active');
             const tabId = button.getAttribute('data-tab');
-            document.getElementById(tabId).classList.add('active');
+            switchTab(tabId);
         });
+    });
+
+    // Check URL hash on page load
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+        switchTab(hash);
+    }
+
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', () => {
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            switchTab(hash);
+        }
     });
 });
 </script>

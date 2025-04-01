@@ -18,6 +18,7 @@ from django.db.models import Q
 from django.core.paginator import Paginator
 from django.db.models import Count
 from .forms import PlantForm, ObservationForm, PhotoForm
+from django.urls import reverse
 
 @ensure_csrf_cookie
 def register(request):
@@ -148,6 +149,9 @@ def plant_detail(request, plant_id):
         observation_form = ObservationForm()
         photo_form = PhotoForm()
         
+        # Get active tab from request or default to 'details'
+        active_tab = request.GET.get('tab', 'details')
+        
         context = {
             'plant': plant,
             'details': details,
@@ -156,6 +160,7 @@ def plant_detail(request, plant_id):
             'comments': comments,
             'observation_form': observation_form,
             'photo_form': photo_form,
+            'active_tab': active_tab,
         }
         return render(request, 'main/plant_detail.html', context)
     except Plant.DoesNotExist:
@@ -179,7 +184,7 @@ def add_observation(request, plant_id):
                 for error in errors:
                     messages.error(request, f'{field}: {error}')
             
-    return redirect('main:plant_detail', plant_id=plant.id)
+    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant.id})}?tab=observations")
 
 @login_required
 def add_photo(request, plant_id):
@@ -198,7 +203,7 @@ def add_photo(request, plant_id):
                 for error in errors:
                     messages.error(request, f'{field}: {error}')
             
-    return redirect('main:plant_detail', plant_id=plant.id)
+    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant.id})}?tab=photos")
 
 @login_required
 @csrf_protect
@@ -257,22 +262,18 @@ def add_comment(request, plant_id):
         else:
             messages.error(request, 'Comment cannot be empty.')
             
-    return redirect('main:plant_detail', plant_id=plant_id)
+    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant_id})}?tab=comments")
 
 @login_required
 @csrf_protect
 def delete_comment(request, plant_id, comment_id):
-    comment = get_object_or_404(Comment, id=comment_id)
-    plant = get_object_or_404(Plant, id=plant_id)
-    
-    # Only allow the plant owner to delete comments
-    if request.user == plant.user:
+    comment = get_object_or_404(Comment, id=comment_id, plant__id=plant_id)
+    if request.user == comment.plant.user:
         comment.delete()
         messages.success(request, 'Comment deleted successfully!')
     else:
         messages.error(request, 'You do not have permission to delete this comment.')
-        
-    return redirect('main:plant_detail', plant_id=plant_id)
+    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant_id})}?tab=comments")
 
 def search_plants_api(request):
     """API endpoint for plant search"""
@@ -386,7 +387,7 @@ def add_detail(request, plant_id):
         else:
             messages.error(request, 'Please provide both title and information.')
     
-    return redirect('main:plant_detail', plant_id=plant.id)
+    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant.id})}?tab=details")
 
 @login_required
 def delete_detail(request, plant_id, detail_id):
@@ -397,7 +398,7 @@ def delete_detail(request, plant_id, detail_id):
         messages.success(request, 'Detail deleted successfully!')
     else:
         messages.error(request, 'You do not have permission to delete this detail.')
-    return redirect('main:plant_detail', plant_id=plant_id)
+    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant_id})}?tab=details")
 
 @login_required
 def delete_observation(request, plant_id, observation_id):
@@ -408,7 +409,7 @@ def delete_observation(request, plant_id, observation_id):
         messages.success(request, 'Observation deleted successfully!')
     else:
         messages.error(request, 'You do not have permission to delete this observation.')
-    return redirect('main:plant_detail', plant_id=plant_id)
+    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant_id})}?tab=observations")
 
 @login_required
 def delete_photo(request, plant_id, photo_id):
@@ -419,7 +420,7 @@ def delete_photo(request, plant_id, photo_id):
         messages.success(request, 'Photo deleted successfully!')
     else:
         messages.error(request, 'You do not have permission to delete this photo.')
-    return redirect('main:plant_detail', plant_id=plant_id)
+    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant_id})}?tab=photos")
 
 @login_required
 def delete_plant(request, plant_id):
