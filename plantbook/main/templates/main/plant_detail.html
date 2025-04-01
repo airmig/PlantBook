@@ -434,23 +434,29 @@
 /* Tab Styles */
 .tab-buttons {
     display: flex;
-    gap: 1rem;
+    gap: 0.5rem;
     margin-bottom: 2rem;
     border-bottom: 1px solid #eee;
     padding-bottom: 1rem;
+    flex-wrap: wrap;
 }
 
 .tab-button {
     background: none;
     border: none;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem;
     color: #666;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     transition: color 0.2s;
+    white-space: nowrap;
+}
+
+.tab-button i {
+    font-size: 1rem;
 }
 
 .tab-button:hover {
@@ -468,6 +474,58 @@
 
 .tab-pane.active {
     display: block;
+}
+
+@media (max-width: 768px) {
+    .tab-buttons {
+        gap: 0.25rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .tab-button {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+    }
+
+    .tab-button i {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 675px) {
+    .tab-buttons {
+        gap: 0.25rem;
+        padding-bottom: 0.5rem;
+        justify-content: center;
+    }
+
+    .tab-button {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.8rem;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .tab-button i {
+        font-size: 0.85rem;
+        margin-right: 0.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .tab-buttons {
+        gap: 0.2rem;
+    }
+
+    .tab-button {
+        padding: 0.3rem 0.4rem;
+        font-size: 0.75rem;
+    }
+
+    .tab-button i {
+        font-size: 0.8rem;
+        margin-right: 0.2rem;
+    }
 }
 
 /* Settings Tab Styles */
