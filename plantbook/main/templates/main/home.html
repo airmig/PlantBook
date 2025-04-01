@@ -1,0 +1,367 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<main class="container">
+    <div class="plants-grid">
+        <div class="welcome-card">
+            <div class="welcome-content">
+                <h1>Welcome to PlantBook</h1>
+                <p>Your personal plant companion for tracking, sharing, and learning about plants.</p>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'main:upload_plant' %}" class="btn-upload">
+                        <i class="fas fa-plus"></i>
+                        <span>Add a Plant</span>
+                    </a>
+                {% else %}
+                    <div class="auth-buttons">
+                        <a href="{% url 'main:login' %}" class="btn-login">Login</a>
+                        <a href="{% url 'main:register' %}" class="btn-register">Register</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% for plant in plants %}
+            <div class="plant-card">
+                <a href="{% url 'main:plant_detail' plant.id %}" class="plant-link">
+                    {% if plant.image %}
+                        <img src="{{ plant.image.url }}" alt="{{ plant.name }}" class="plant-image">
+                    {% else %}
+                        <div class="plant-image-placeholder">
+                            <i class="fas fa-leaf"></i>
+                        </div>
+                    {% endif %}
+                    <div class="plant-info">
+                        <h3>{{ plant.name }}</h3>
+                        <p class="scientific-name">{{ plant.scientific_name }}</p>
+                        <p class="owner">By {{ plant.user.get_full_name|default:plant.user.email }}</p>
+                    </div>
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="recent-plants-section">
+        <div class="section-header">
+            <h2>Recently Added Plants</h2>
+            <p>Latest additions from the PlantBook community</p>
+        </div>
+        <div class="recent-plants-grid">
+            {% for plant in recent_plants %}
+                <div class="recent-plant-card">
+                    <a href="{% url 'main:plant_detail' plant.id %}" class="recent-plant-link">
+                        {% if plant.image %}
+                            <img src="{{ plant.image.url }}" alt="{{ plant.name }}" class="recent-plant-image">
+                        {% else %}
+                            <div class="recent-plant-image-placeholder">
+                                <i class="fas fa-leaf"></i>
+                            </div>
+                        {% endif %}
+                        <div class="recent-plant-info">
+                            <h3>{{ plant.name }}</h3>
+                            <p class="scientific-name">{{ plant.scientific_name }}</p>
+                            <div class="recent-plant-meta">
+                                <span class="owner">By {{ plant.user.get_full_name|default:plant.user.email }}</span>
+                                <span class="date">{{ plant.created_at|date:"M j, Y" }}</span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</main>
+
+<style>
+.plants-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+    padding: 2rem;
+}
+
+.welcome-card {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    color: white;
+}
+
+.welcome-card:hover {
+    transform: translateY(-5px);
+}
+
+.welcome-content {
+    max-width: 80%;
+}
+
+.welcome-content h1 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: white;
+}
+
+.welcome-content p {
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+}
+
+.btn-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: white;
+    color: #4CAF50;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-upload:hover {
+    background: #f8f8f8;
+    transform: translateY(-2px);
+}
+
+.auth-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.btn-login, .btn-register {
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-login {
+    background: white;
+    color: #4CAF50;
+}
+
+.btn-register {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid white;
+}
+
+.btn-login:hover, .btn-register:hover {
+    transform: translateY(-2px);
+}
+
+.plant-card {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+    aspect-ratio: 1;
+}
+
+.plant-card:hover {
+    transform: translateY(-5px);
+}
+
+.plant-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    height: 100%;
+}
+
+.plant-image {
+    width: 100%;
+    height: 60%;
+    object-fit: cover;
+}
+
+.plant-image-placeholder {
+    width: 100%;
+    height: 60%;
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4CAF50;
+    font-size: 3rem;
+}
+
+.plant-info {
+    padding: 1rem;
+    height: 40%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.plant-info h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.2rem;
+}
+
+.scientific-name {
+    color: #666;
+    font-style: italic;
+    margin: 0.5rem 0;
+}
+
+.owner {
+    color: #999;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .plants-grid {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .welcome-content h1 {
+        font-size: 1.75rem;
+    }
+
+    .welcome-content p {
+        font-size: 1rem;
+    }
+
+    .btn-upload, .btn-login, .btn-register {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+}
+
+.recent-plants-section {
+    background: white;
+    margin-top: 3rem;
+    padding: 3rem 0;
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.section-header h2 {
+    color: #333;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.section-header p {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.recent-plants-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2rem;
+    padding: 0 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.recent-plant-card {
+    background: #f8f8f8;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+}
+
+.recent-plant-card:hover {
+    transform: translateY(-5px);
+}
+
+.recent-plant-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.recent-plant-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.recent-plant-image-placeholder {
+    width: 100%;
+    height: 200px;
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4CAF50;
+    font-size: 2.5rem;
+}
+
+.recent-plant-info {
+    padding: 1rem;
+}
+
+.recent-plant-info h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.recent-plant-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.recent-plant-meta .owner {
+    color: #666;
+}
+
+.recent-plant-meta .date {
+    color: #999;
+}
+
+@media (max-width: 768px) {
+    .recent-plants-section {
+        padding: 2rem 0;
+    }
+
+    .section-header h2 {
+        font-size: 1.75rem;
+    }
+
+    .section-header p {
+        font-size: 1rem;
+    }
+
+    .recent-plants-grid {
+        grid-template-columns: 1fr;
+        padding: 0 1rem;
+        gap: 1rem;
+    }
+}
+</style>
+{% endblock %} 

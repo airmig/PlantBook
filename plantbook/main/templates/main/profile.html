@@ -1,0 +1,333 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<main class="container">
+    <div class="profile-container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="profile-header">
+            <div class="profile-photo-section">
+                <div class="large-profile-photo">
+                    {% if user.profile.profile_photo %}
+                        <img src="{{ user.profile.profile_photo.url }}" alt="Profile Photo">
+                    {% else %}
+                        <i class="fas fa-user"></i>
+                    {% endif %}
+                </div>
+                <label for="profile_photo" class="profile-photo-upload">
+                    <i class="fas fa-camera"></i>
+                </label>
+            </div>
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <span class="stat-number">{{ plants_count }}</span>
+                    <span class="stat-label">Plants</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ user.profile.joined_date|date:"M Y" }}</span>
+                    <span class="stat-label">Joined</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-content">
+            <form method="post" enctype="multipart/form-data" class="profile-form">
+                {% csrf_token %}
+                <div class="form-section">
+                    <h3>Profile Information</h3>
+                    <input type="file" id="profile_photo" name="profile_photo" accept="image/*" onchange="previewImage(this)">
+                    <div class="form-group">
+                        <label for="first_name">First Name</label>
+                        <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="last_name">Last Name</label>
+                        <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="location">Location</label>
+                        <input type="text" id="location" name="location" value="{{ user.profile.location }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="bio">Bio</label>
+                        <textarea id="bio" name="bio" rows="4">{{ user.profile.bio }}</textarea>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+
+            <div class="recent-plants">
+                <h3>Recent Plants</h3>
+                {% if latest_plants %}
+                    <div class="plants-grid">
+                        {% for plant in latest_plants %}
+                            <div class="plant-card">
+                                <a href="{% url 'main:plant_detail' plant.id %}">
+                                    {% if plant.image %}
+                                        <img src="{{ plant.image.url }}" alt="{{ plant.name }}">
+                                    {% else %}
+                                        <div class="no-image">
+                                            <i class="fas fa-leaf"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div class="plant-info">
+                                        <h4>{{ plant.name }}</h4>
+                                        <p class="scientific-name">{{ plant.scientific_name }}</p>
+                                    </div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="no-content">No plants added yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const profilePhoto = document.querySelector('.large-profile-photo');
+            if (profilePhoto.querySelector('img')) {
+                profilePhoto.querySelector('img').src = e.target.result;
+            } else {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                profilePhoto.innerHTML = '';
+                profilePhoto.appendChild(img);
+            }
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .profile-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin-bottom: 2rem;
+        padding: 2rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .profile-photo-section {
+        flex-shrink: 0;
+        position: relative;
+    }
+
+    .large-profile-photo {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        overflow: hidden;
+        background-color: #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: #666;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .large-profile-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .large-profile-photo i {
+        font-size: 4rem;
+    }
+
+    .profile-stats {
+        display: flex;
+        gap: 2rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-number {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+
+    .stat-label {
+        color: #666;
+    }
+
+    .profile-content {
+        display: grid;
+        gap: 2rem;
+        grid-template-columns: 1fr 300px;
+    }
+
+    .profile-form {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+    }
+
+    .form-section h3 {
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="email"],
+    .form-group textarea {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .recent-plants {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .plants-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .plant-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .plant-card a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .plant-card img,
+    .plant-card .no-image {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        background-color: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #666;
+    }
+
+    .plant-info {
+        padding: 1rem;
+    }
+
+    .plant-info h4 {
+        margin: 0;
+        color: #2c3e50;
+    }
+
+    .scientific-name {
+        font-style: italic;
+        color: #666;
+        font-size: 0.9rem;
+        margin: 0.25rem 0 0;
+    }
+
+    .btn-primary {
+        background-color: #4CAF50;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #45a049;
+    }
+
+    .profile-photo-upload {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        background: white;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .profile-photo-upload:hover {
+        background-color: #e0e0e0;
+    }
+
+    .profile-photo-upload i {
+        font-size: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .profile-content {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %} 

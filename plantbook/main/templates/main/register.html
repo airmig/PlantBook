@@ -1,0 +1,57 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Register - PlantBook{% endblock %}
+
+{% block content %}
+<header class="header">
+    <div class="header-left">
+        <a href="{% url 'main:home' %}" class="logo">
+            <i class="fas fa-leaf"></i>
+            <span>PlantBook</span>
+        </a>
+        <form action="{% url 'main:search_plants' %}" method="GET" class="search-form">
+            <input type="text" name="q" placeholder="Search plants..." value="{{ request.GET.q }}">
+            <button type="submit"><i class="fas fa-search"></i></button>
+        </form>
+    </div>
+</header>
+<div class="register-container">
+    <div class="register-box">
+        <h2>Create Account</h2>
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        <form method="post" class="register-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="first_name">First Name</label>
+                <input type="text" id="first_name" name="first_name" value="{{ request.POST.first_name }}" required>
+            </div>
+            <div class="form-group">
+                <label for="last_name">Last Name</label>
+                <input type="text" id="last_name" name="last_name" value="{{ request.POST.last_name }}" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="{{ request.POST.email }}" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+                <span class="password-hint">Password must be at least 8 characters long</span>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+            </div>
+            <button type="submit" class="register-button">Create Account</button>
+        </form>
+        <p class="mt-3">Already have an account? <a href="{% url 'main:login' %}">Login here</a></p>
+    </div>
+</div>
+{% endblock %} 
