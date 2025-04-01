@@ -285,13 +285,75 @@ def search_plants_api(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 def search_plants(request):
-    """Search plants in our database"""
+    """Search plants in our database and Trefle API"""
     query = request.GET.get('q', '')
+    trefle = request.GET.get('trefle') == '1'
+    
+    # Clear any existing messages when starting a new search
+    storage = messages.get_messages(request)
+    for _ in storage:
+        pass
+    
     if query:
+        # If trefle parameter is set, search Trefle API directly
+        if trefle:
+            try:
+                trefle_results = trefle_api.search_plants(query, per_page=20)
+                if trefle_results and 'data' in trefle_results:
+                    # Process the Trefle results to match our template's expected format
+                    processed_plants = []
+                    for plant in trefle_results['data']:
+                        processed_plant = {
+                            'id': plant.get('id'),
+                            'name': plant.get('common_name', ''),
+                            'scientific_name': plant.get('scientific_name', ''),
+                            'image_url': plant.get('image_url'),
+                            'family': plant.get('family', ''),
+                            'family_common_name': plant.get('family_common_name', ''),
+                            'genus': plant.get('genus', ''),
+                            'species': plant.get('species', ''),
+                            'year': plant.get('year', ''),
+                            'bibliography': plant.get('bibliography', ''),
+                            'author': plant.get('author', ''),
+                            'status': plant.get('status', ''),
+                            'rank': plant.get('rank', ''),
+                            'observations': plant.get('observations', ''),
+                            'vegetable': plant.get('vegetable', False),
+                            'edible_part': plant.get('edible_part', ''),
+                            'edible': plant.get('edible', False),
+                            'images': plant.get('images', []),
+                            'common_names': plant.get('common_names', {}),
+                            'distribution': plant.get('distribution', {}),
+                            'distributions': plant.get('distributions', {}),
+                            'flower': plant.get('flower', {}),
+                            'foliage': plant.get('foliage', {}),
+                            'fruit_or_seed': plant.get('fruit_or_seed', {}),
+                            'specifications': plant.get('specifications', {}),
+                            'growth': plant.get('growth', {}),
+                            'links': plant.get('links', {})
+                        }
+                        processed_plants.append(processed_plant)
+                    
+                    return render(request, 'main/trefle_search.html', {
+                        'plants': processed_plants,
+                        'query': query
+                    })
+            except Exception as e:
+                messages.error(request, f'Error searching Trefle API: {str(e)}')
+        
+        # Otherwise, first search in our database
         plants = Plant.objects.filter(
             Q(name__icontains=query) |
             Q(scientific_name__icontains=query)
         ).order_by('-created_at')
+        
+        # If no results found in our database and trefle parameter is not set,
+        # show the option to search Trefle
+        if not plants.exists() and not trefle:
+            return render(request, 'main/search_results.html', {
+                'plants': [],
+                'query': query
+            })
     else:
         plants = Plant.objects.all().order_by('-created_at')
     

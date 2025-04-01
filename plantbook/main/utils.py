@@ -10,10 +10,6 @@ class TrefleAPI:
     def __init__(self):
         self.base_url = settings.TREFLE_API_BASE_URL
         self.token = settings.TREFLE_API_TOKEN
-        self.headers = {
-            'Authorization': f'Bearer {self.token}',
-            'Content-Type': 'application/json'
-        }
         logger.info(f"Initialized TrefleAPI with base URL: {self.base_url}")
 
     def _make_request(self, endpoint, params=None):
@@ -21,9 +17,15 @@ class TrefleAPI:
         url = f"{self.base_url}/{endpoint}"
         cache_key = f"trefle_{endpoint}_{str(params)}"
         
+        # Initialize params if None
+        if params is None:
+            params = {}
+        
+        # Add token to params
+        params['token'] = self.token
+        
         logger.info(f"Making request to Trefle API: {url}")
         logger.debug(f"Request parameters: {params}")
-        logger.debug(f"Request headers: {self.headers}")
         
         # Try to get from cache first
         cached_response = cache.get(cache_key)
@@ -35,7 +37,7 @@ class TrefleAPI:
         
         try:
             # Make the API request
-            response = requests.get(url, headers=self.headers, params=params)
+            response = requests.get(url, params=params)
             
             # Log response details for debugging
             logger.debug(f"Response status code: {response.status_code}")
