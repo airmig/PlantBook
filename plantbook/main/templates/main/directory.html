@@ -2,15 +2,10 @@
 {% load static %}
 
 {% block content %}
-<div class="container">
+<main class="container">
     <div class="directory-container">
         <h1>User Directory</h1>
         
-        <form method="GET" class="search-form">
-            <input type="text" name="q" placeholder="Search users..." value="{{ search_query }}">
-            <button type="submit"><i class="fas fa-search"></i></button>
-        </form>
-
         <div class="users-grid">
             {% for user in users %}
             <div class="user-item" data-username="{{ user.username }}">
@@ -23,8 +18,7 @@
                         {% endif %}
                     </div>
                     <div class="user-info">
-                        <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
-                        <div class="user-username">@{{ user.username }}</div>
+                        <div class="user-name">{{ user.get_full_name }}</div>
                         <div class="user-stats">
                             <span><i class="fas fa-leaf"></i> {{ user.plant_count }} plants</span>
                         </div>
@@ -64,50 +58,19 @@
         </div>
         {% endif %}
     </div>
-</div>
+</main>
 
 <style>
 .directory-container {
     max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
+    margin: 2rem auto;
+    padding: 0 1rem;
 }
 
 .directory-container h1 {
-    color: #4CAF50;
+    color: #ffffff;
     margin-bottom: 2rem;
     text-align: center;
-}
-
-.search-form {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 2rem;
-    max-width: 500px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.search-form input {
-    flex: 1;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
-}
-
-.search-form button {
-    padding: 0.75rem 1.5rem;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.search-form button:hover {
-    background: #45a049;
 }
 
 .users-grid {
