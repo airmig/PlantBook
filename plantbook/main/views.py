@@ -13,12 +13,15 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
-from .utils import trefle_api
+from .utils import trefle_api, permapeople_api
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.db.models import Count
 from .forms import PlantForm, ObservationForm, PhotoForm
 from django.urls import reverse
+import logging
+
+logger = logging.getLogger(__name__)
 
 @ensure_csrf_cookie
 def register(request):
@@ -285,9 +288,8 @@ def search_plants_api(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 def search_plants(request):
-    """Search plants in our database and Trefle API"""
+    """Search plants in our database and PermaPeople API"""
     query = request.GET.get('q', '')
-    trefle = request.GET.get('trefle') == '1'
     
     # Clear any existing messages when starting a new search
     storage = messages.get_messages(request)
@@ -295,65 +297,54 @@ def search_plants(request):
         pass
     
     if query:
-        # If trefle parameter is set, search Trefle API directly
-        if trefle:
-            try:
-                trefle_results = trefle_api.search_plants(query, per_page=20)
-                if trefle_results and 'data' in trefle_results:
-                    # Process the Trefle results to match our template's expected format
-                    processed_plants = []
-                    for plant in trefle_results['data']:
-                        processed_plant = {
-                            'id': plant.get('id'),
-                            'name': plant.get('common_name', ''),
-                            'scientific_name': plant.get('scientific_name', ''),
-                            'image_url': plant.get('image_url'),
-                            'family': plant.get('family', ''),
-                            'family_common_name': plant.get('family_common_name', ''),
-                            'genus': plant.get('genus', ''),
-                            'species': plant.get('species', ''),
-                            'year': plant.get('year', ''),
-                            'bibliography': plant.get('bibliography', ''),
-                            'author': plant.get('author', ''),
-                            'status': plant.get('status', ''),
-                            'rank': plant.get('rank', ''),
-                            'observations': plant.get('observations', ''),
-                            'vegetable': plant.get('vegetable', False),
-                            'edible_part': plant.get('edible_part', ''),
-                            'edible': plant.get('edible', False),
-                            'images': plant.get('images', []),
-                            'common_names': plant.get('common_names', {}),
-                            'distribution': plant.get('distribution', {}),
-                            'distributions': plant.get('distributions', {}),
-                            'flower': plant.get('flower', {}),
-                            'foliage': plant.get('foliage', {}),
-                            'fruit_or_seed': plant.get('fruit_or_seed', {}),
-                            'specifications': plant.get('specifications', {}),
-                            'growth': plant.get('growth', {}),
-                            'links': plant.get('links', {})
-                        }
-                        processed_plants.append(processed_plant)
-                    
-                    return render(request, 'main/trefle_search.html', {
-                        'plants': processed_plants,
-                        'query': query
-                    })
-            except Exception as e:
-                messages.error(request, f'Error searching Trefle API: {str(e)}')
-        
-        # Otherwise, first search in our database
+        # First search in our database
         plants = Plant.objects.filter(
             Q(name__icontains=query) |
             Q(scientific_name__icontains=query)
         ).order_by('-created_at')
         
-        # If no results found in our database and trefle parameter is not set,
-        # show the option to search Trefle
-        if not plants.exists() and not trefle:
-            return render(request, 'main/search_results.html', {
-                'plants': [],
-                'query': query
-            })
+        # If no results found in our database, search PermaPeople API
+        if not plants.exists():
+            try:
+                permapeople_results = permapeople_api.search_plants(query)
+                if permapeople_results and 'plants' in permapeople_results:
+                    # Process the PermaPeople results
+                    processed_plants = []
+                    for plant in permapeople_results['plants']:
+                        # Extract data from key-value pairs
+                        plant_data = {}
+                        for item in plant.get('data', []):
+                            key = item.get('key', '').lower().replace(' ', '_')
+                            value = item.get('value', '')
+                            plant_data[key] = value
+                        
+                        # Process the plant data
+                        processed_plant = {
+                            'id': plant.get('id'),
+                            'name': plant.get('name', ''),
+                            'scientific_name': plant.get('slug', '').replace('-', ' ').title(),
+                            'image_url': plant.get('image_url'),
+                            'description': plant.get('description', ''),
+                            'edible': plant_data.get('edible', ''),
+                            'water_requirement': plant_data.get('water_requirement', ''),
+                            'light_requirement': plant_data.get('light_requirement', ''),
+                            'hardiness_zone': plant_data.get('usda_hardiness_zone', ''),
+                            'layer': plant_data.get('layer', ''),
+                            'wikipedia': plant_data.get('wikipedia', ''),
+                            'source': 'permapeople'
+                        }
+                        processed_plants.append(processed_plant)
+                    
+                    return render(request, 'main/permapeople_search.html', {
+                        'plants': processed_plants,
+                        'query': query
+                    })
+            except Exception as e:
+                messages.error(request, f'Error searching PermaPeople API: {str(e)}')
+                return render(request, 'main/search_results.html', {
+                    'plants': [],
+                    'query': query
+                })
     else:
         plants = Plant.objects.all().order_by('-created_at')
     
@@ -559,3 +550,206 @@ def mark_message_read(request, message_id):
         return JsonResponse({'status': 'success'})
     except Message.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Message not found'}, status=404)
+
+@login_required
+@require_POST
+def add_permaplant(request):
+    """Add a new plant from PermaPeople to the user's collection"""
+    try:
+        data = json.loads(request.body)
+        permaplant_id = data.get('permaplant_id')
+        
+        if not permaplant_id:
+            return JsonResponse({'success': False, 'error': 'Missing permaplant_id'})
+        
+        # Get details from PermaPeople API
+        try:
+            # Log the request parameters
+            logger.info(f"Fetching plant details for PermaPeople ID: {permaplant_id}")
+            
+            plant_details = permapeople_api.get_plant(permaplant_id)
+            logger.info(f"Received plant details: {json.dumps(plant_details, indent=2)}")
+            
+            if not plant_details:
+                logger.error("Empty response from PermaPeople API")
+                return JsonResponse({'success': False, 'error': 'Could not fetch plant details'})
+            
+            # Extract basic plant information
+            name = plant_details.get('name', '')
+            scientific_name = plant_details.get('scientific_name', '')
+            description = plant_details.get('description', '')
+            image_url = plant_details.get('image_url', '')
+            
+            if not name:
+                logger.error("Missing required field: name")
+                return JsonResponse({'success': False, 'error': 'Missing required field: name'})
+            
+            # Create the plant
+            plant = Plant.objects.create(
+                user=request.user,
+                name=name,
+                scientific_name=scientific_name,
+                image=image_url,
+                source='permapeople',
+                external_id=permaplant_id
+            )
+            logger.info(f"Created plant: ID={plant.id}, name={plant.name}")
+            
+            # Add description as a plant detail if it exists
+            if description:
+                try:
+                    PlantDetail.objects.create(
+                        plant=plant,
+                        header='Description',
+                        information=description
+                    )
+                    logger.debug("Added description as plant detail")
+                except Exception as e:
+                    logger.error(f"Error creating description detail: {str(e)}")
+            
+            # Process additional details
+            details = plant_details.get('data', [])
+            if not details:
+                logger.warning("No additional details found in response")
+                return JsonResponse({'success': True, 'plant_id': plant.id})
+            
+            details_added = 0
+            logger.info(f"Processing {len(details)} details")
+            
+            for detail in details:
+                if isinstance(detail, dict):
+                    key = detail.get('key', '').lower().replace(' ', '_')
+                    value = detail.get('value', '')
+                    
+                    logger.debug(f"Processing detail: key={key}, value={value}")
+                    
+                    # Skip empty values
+                    if not value:
+                        logger.debug(f"Skipping empty value for key: {key}")
+                        continue
+                    
+                    try:
+                        # Create plant detail
+                        plant_detail = PlantDetail.objects.create(
+                            plant=plant,
+                            header=key.replace('_', ' ').title(),
+                            information=value
+                        )
+                        details_added += 1
+                        logger.debug(f"Created plant detail: ID={plant_detail.id}, header={plant_detail.header}")
+                    except Exception as e:
+                        logger.error(f"Error creating plant detail: {str(e)}")
+                else:
+                    logger.warning(f"Invalid detail format: {detail}")
+            
+            logger.info(f"Successfully added {details_added} details to plant ID={plant.id}")
+            return JsonResponse({
+                'success': True, 
+                'plant_id': plant.id, 
+                'details_added': details_added
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching additional details: {str(e)}")
+            # If we have a plant object, return success with warning
+            if 'plant' in locals():
+                return JsonResponse({
+                    'success': True, 
+                    'plant_id': plant.id,
+                    'warning': f'Error fetching additional details: {str(e)}'
+                })
+            # If we don't have a plant object, return error
+            return JsonResponse({
+                'success': False,
+                'error': f'Error fetching plant details: {str(e)}'
+            })
+    
+    except Exception as e:
+        logger.error(f"Error in add_permaplant: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+def get_user_plants(request):
+    """Get all plants in the user's collection for the modal selection."""
+    plants = Plant.objects.filter(user=request.user).order_by('name')
+    plants_data = [{'id': plant.id, 'name': plant.name, 'scientific_name': plant.scientific_name} for plant in plants]
+    return JsonResponse({'plants': plants_data})
+
+@login_required
+@require_POST
+def import_permaplant(request):
+    """Import data from a PermaPeople plant to an existing plant in the user's collection."""
+    try:
+        data = json.loads(request.body)
+        permaplant_id = data.get('permaplant_id')
+        plant_id = data.get('plant_id')
+        
+        if not all([permaplant_id, plant_id]):
+            return JsonResponse({'success': False, 'error': 'Missing required fields'})
+        
+        # Get the existing plant
+        plant = get_object_or_404(Plant, id=plant_id, user=request.user)
+        
+        # Get details from PermaPeople API
+        try:
+            # Log the request parameters
+            logger.info(f"Fetching plant details for PermaPeople ID: {permaplant_id}")
+            
+            plant_details = permapeople_api.get_plant(permaplant_id)
+            
+            # Log the raw response for debugging
+            logger.debug(f"Raw API response: {plant_details}")
+            
+            if not plant_details:
+                logger.error("Empty response from PermaPeople API")
+                return JsonResponse({'success': False, 'error': 'Empty response from API'})
+            
+            if 'data' not in plant_details:
+                logger.error(f"Unexpected API response format: {plant_details}")
+                return JsonResponse({'success': False, 'error': 'Unexpected API response format'})
+            
+            # Extract data from key-value pairs
+            for item in plant_details['data']:
+                key = item.get('key', '').lower().replace(' ', '_')
+                value = item.get('value', '')
+                
+                # Skip empty values
+                if not value:
+                    continue
+                
+                # Check if detail already exists
+                existing_detail = PlantDetail.objects.filter(
+                    plant=plant,
+                    header=key.replace('_', ' ').title()
+                ).first()
+                
+                if existing_detail:
+                    # Update existing detail
+                    existing_detail.information = value
+                    existing_detail.save()
+                else:
+                    # Create new detail
+                    PlantDetail.objects.create(
+                        plant=plant,
+                        header=key.replace('_', ' ').title(),
+                        information=value
+                    )
+            
+            # Update plant source if not already set
+            if not plant.source:
+                plant.source = 'permapeople'
+                plant.external_id = permaplant_id
+                plant.save()
+            
+            return JsonResponse({'success': True})
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {str(e)}")
+            return JsonResponse({'success': False, 'error': 'Invalid JSON response from API'})
+        except Exception as e:
+            logger.error(f"Error fetching plant details: {str(e)}")
+            return JsonResponse({'success': False, 'error': f'Error fetching plant details: {str(e)}'})
+    
+    except Exception as e:
+        logger.error(f"Error in import_permaplant: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)})

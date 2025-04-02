@@ -57,3 +57,5 @@ docs/_build/
 
 plantbook/db.sqlite3
 plantbook/PlantBook/settings.py
+
+.env

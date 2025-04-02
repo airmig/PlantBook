@@ -46,13 +46,7 @@
             <div class="no-results">
                 <i class="fas fa-search"></i>
                 <p>No plants found matching your search.</p>
-                <div class="trefle-search">
-                    <p>Would you like to search the Trefle database?</p>
-                    <a href="{% url 'main:search_plants' %}?q={{ query }}&trefle=1" class="btn btn-primary">
-                        <i class="fas fa-leaf"></i>
-                        Search Trefle Database
-                    </a>
-                </div>
+                <p class="search-tip">Try searching with different keywords or browse all plants.</p>
             </div>
         {% endif %}
     </div>
@@ -164,38 +158,10 @@
     margin-bottom: 1.5rem;
 }
 
-.trefle-search {
-    margin-top: 2rem;
-    padding-top: 2rem;
-    border-top: 1px solid #eee;
-}
-
-.trefle-search p {
-    color: #666;
-    font-size: 1rem;
-    margin-bottom: 1rem;
-}
-
-.btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    text-decoration: none;
-}
-
-.btn-primary {
-    background-color: #4CAF50;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #45a049;
+.search-tip {
+    color: #999;
+    font-size: 0.9rem;
+    font-style: italic;
 }
 
 @media (max-width: 768px) {

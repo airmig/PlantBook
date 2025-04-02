@@ -2,6 +2,12 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 import logging
+import os
+from dotenv import load_dotenv
+import json
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -92,7 +98,31 @@ class TrefleAPI:
 
     def get_plant(self, plant_id):
         """Get detailed information about a specific plant"""
-        return self._make_request(f'plants/{plant_id}')
+        try:
+            logger.info(f"Fetching plant details for ID: {plant_id}")
+            endpoint = f'plant/{plant_id}'
+            response = self._make_request(endpoint, 'GET')
+            
+            logger.debug(f"Raw API response for plant {plant_id}: {response}")
+            
+            if not response:
+                logger.error(f"Empty response for plant {plant_id}")
+                return None
+                
+            # Ensure we have the expected data structure
+            if not isinstance(response, dict):
+                logger.error(f"Unexpected response type for plant {plant_id}: {type(response)}")
+                return None
+                
+            if 'data' not in response:
+                logger.error(f"No 'data' field in response for plant {plant_id}")
+                return None
+                
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error fetching plant {plant_id}: {str(e)}")
+            raise
 
     def get_plant_images(self, plant_id):
         """Get images for a specific plant"""
@@ -120,5 +150,76 @@ class TrefleAPI:
         params = {'page': page}
         return self._make_request('subkingdoms', params)
 
+class PermaPeopleAPI:
+    """Class to handle PermaPeople API requests"""
+    
+    def __init__(self):
+        self.base_url = 'https://permapeople.org/api'
+        self.key_id = os.getenv('PERMAPEOPLE_KEY_ID')
+        self.key_secret = os.getenv('PERMAPEOPLE_KEY_SECRET')
+        
+        if not self.key_id or not self.key_secret:
+            logger.error("PermaPeople API credentials not found in environment variables")
+            raise ValueError("PermaPeople API credentials not configured")
+    
+    def _make_request(self, endpoint, method='POST', data=None):
+        """Make a request to the PermaPeople API"""
+        url = f"{self.base_url}/{endpoint}"
+        headers = {
+            'Content-Type': 'application/json',
+            'x-permapeople-key-id': self.key_id,
+            'x-permapeople-key-secret': self.key_secret
+        }
+        
+        try:
+            logger.info(f"Making {method} request to PermaPeople API: {url}")
+            logger.debug(f"Request data: {data}")
+            
+            if method == 'POST':
+                response = requests.post(url, json=data, headers=headers)
+            else:
+                # For GET requests, pass data as params
+                response = requests.get(url, params=data, headers=headers)
+            
+            # Log response details for debugging
+            logger.debug(f"Response status code: {response.status_code}")
+            logger.debug(f"Response headers: {response.headers}")
+            logger.debug(f"Response content: {response.text[:500]}...")  # Log first 500 chars
+            
+            response.raise_for_status()
+            
+            try:
+                json_response = response.json()
+                logger.debug(f"Parsed JSON response: {json_response}")
+                return json_response
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to decode JSON response: {str(e)}")
+                logger.error(f"Raw response content: {response.text}")
+                raise
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"PermaPeople API request failed: {str(e)}")
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_data = e.response.json()
+                    raise Exception(f"PermaPeople API error: {error_data.get('msg', str(e))}")
+                except json.JSONDecodeError:
+                    logger.error(f"Raw error response: {e.response.text}")
+                    raise Exception(f"PermaPeople API request failed: {str(e)}")
+            raise Exception(f"PermaPeople API request failed: {str(e)}")
+    
+    def search_plants(self, query):
+        """Search for plants using the PermaPeople API"""
+        data = {'q': query}
+        return self._make_request('search', data=data)
+    
+    def get_plant(self, plant_id):
+        """Get detailed information about a specific plant"""
+        endpoint = f'plants/{plant_id}'
+        return self._make_request(endpoint, method='GET')
+
 # Create a singleton instance
-trefle_api = TrefleAPI() 
+trefle_api = TrefleAPI()
+
+# Initialize the API client
+permapeople_api = PermaPeopleAPI() 

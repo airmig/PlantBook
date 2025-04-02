@@ -29,9 +29,11 @@ class Plant(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     scientific_name = models.CharField(max_length=100)
-    image = models.ImageField(upload_to='plants/')
+    image = models.ImageField(upload_to='plants/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    source = models.CharField(max_length=50, blank=True, null=True, help_text="Source of the plant data (e.g., 'permapeople')")
+    external_id = models.CharField(max_length=100, blank=True, null=True, help_text="External ID from the source API")
 
     def __str__(self):
         return f"{self.name} ({self.scientific_name})"

@@ -30,4 +30,12 @@ urlpatterns = [
     path('messages/', views.get_messages, name='get_messages'),
     path('messages/send/', views.send_message, name='send_message'),
     path('messages/<int:message_id>/read/', views.mark_message_read, name='mark_message_read'),
+    path('delete_photo/<int:plant_id>/<int:photo_id>/', views.delete_photo, name='delete_photo'),
+    path('delete_plant/<int:plant_id>/', views.delete_plant, name='delete_plant'),
+    path('get_messages/', views.get_messages, name='get_messages'),
+    path('send_message/', views.send_message, name='send_message'),
+    path('mark_message_read/<int:message_id>/', views.mark_message_read, name='mark_message_read'),
+    path('add_permaplant/', views.add_permaplant, name='add_permaplant'),
+    path('get_user_plants/', views.get_user_plants, name='get_user_plants'),
+    path('import_permaplant/', views.import_permaplant, name='import_permaplant'),
 ] 

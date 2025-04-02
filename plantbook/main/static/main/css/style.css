@@ -286,11 +286,13 @@ a:hover {
 
 /* Plant Card Styles */
 .plant-card {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .plant-card:hover {
@@ -305,7 +307,10 @@ a:hover {
 }
 
 .plant-info {
-    padding: 1rem;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
 }
 
 .plant-info h3 {
@@ -319,6 +324,22 @@ a:hover {
     font-style: italic;
     margin: 0.5rem 0 0;
     font-size: 0.9rem;
+}
+
+.plant-details {
+    flex-grow: 1;
+}
+
+.button-group {
+    margin-top: auto;
+    padding-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.button-group .btn {
+    flex: 1;
+    margin: 0;
 }
 
 /* Add Plant Button Styles */
