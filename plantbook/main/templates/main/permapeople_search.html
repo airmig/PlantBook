@@ -28,6 +28,8 @@
                         <div class="plant-image-container">
                             {% if plant.image_url %}
                                 <img src="{{ plant.image_url }}" alt="{{ plant.name }}" class="plant-image">
+                            {% elif plant.wikipedia_image %}
+                                <img src="{{ plant.wikipedia_image }}" alt="{{ plant.name }}" class="plant-image">
                             {% else %}
                                 <div class="plant-image-placeholder">
                                     <i class="fas fa-leaf"></i>
@@ -40,41 +42,16 @@
                             {% if plant.description %}
                                 <p class="description">{{ plant.description|truncatewords:30 }}</p>
                             {% endif %}
+                            
                             <div class="plant-details">
                                 <div class="details-section">
                                     <h4>Plant Information</h4>
-                                    {% if plant.layer %}
-                                        <p><strong>Layer:</strong> {{ plant.layer }}</p>
-                                    {% endif %}
-                                    {% if plant.edible %}
-                                        <p><strong>Edible:</strong> {{ plant.edible }}</p>
-                                    {% endif %}
+                                    {% for item in plant.data %}
+                                        <p><strong>{{ item.key }}:</strong> {{ item.value }}</p>
+                                    {% endfor %}
                                 </div>
-
-                                <div class="details-section">
-                                    <h4>Environmental Requirements</h4>
-                                    {% if plant.light_requirement %}
-                                        <p><strong>Light Requirements:</strong> {{ plant.light_requirement }}</p>
-                                    {% endif %}
-                                    {% if plant.water_requirement %}
-                                        <p><strong>Water Requirements:</strong> {{ plant.water_requirement }}</p>
-                                    {% endif %}
-                                    {% if plant.hardiness_zone %}
-                                        <p><strong>USDA Hardiness Zone:</strong> {{ plant.hardiness_zone }}</p>
-                                    {% endif %}
-                                </div>
-
-                                {% if plant.wikipedia %}
-                                    <div class="details-section">
-                                        <h4>Additional Information</h4>
-                                        <p>
-                                            <a href="{{ plant.wikipedia }}" target="_blank" class="wikipedia-link">
-                                                <i class="fas fa-external-link-alt"></i> View on Wikipedia
-                                            </a>
-                                        </p>
-                                    </div>
-                                {% endif %}
                             </div>
+
                             <div class="button-group">
                                 <button class="btn btn-primary add-to-collection" data-plant-id="{{ plant.id }}" data-plant-name="{{ plant.name }}" data-plant-scientific-name="{{ plant.scientific_name }}">
                                     <i class="fas fa-plus"></i> Add to Collection
@@ -137,8 +114,8 @@
 }
 
 .plants-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 2rem;
 }
 
@@ -148,6 +125,7 @@
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     transition: transform 0.2s;
+    width: 100%;
 }
 
 .plant-card:hover {
@@ -397,11 +375,6 @@
 @media (max-width: 768px) {
     .search-results {
         padding: 1rem;
-    }
-
-    .plants-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
     }
     
     .modal-content {

@@ -13,7 +13,7 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
-from .utils import trefle_api, permapeople_api
+from .utils import permapeople_api
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.db.models import Count
@@ -128,15 +128,13 @@ def upload_plant(request):
                 return redirect('main:plant_detail', plant_id=plant.id)
                 
             except Exception as e:
-                messages.error(request, f'Error uploading plant: {str(e)}')
-                return redirect('main:upload_plant')
+                messages.error(request, f'Error saving plant: {str(e)}')
+                return redirect('main:add_plant')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
-            return redirect('main:upload_plant')
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = PlantForm()
     
-    form = PlantForm()
     return render(request, 'main/upload_plant.html', {'form': form})
 
 def plant_detail(request, plant_id):
@@ -307,32 +305,37 @@ def search_plants(request):
         if not plants.exists():
             try:
                 permapeople_results = permapeople_api.search_plants(query)
-                if permapeople_results and 'plants' in permapeople_results:
+                if permapeople_results:
                     # Process the PermaPeople results
                     processed_plants = []
-                    for plant in permapeople_results['plants']:
-                        # Extract data from key-value pairs
-                        plant_data = {}
-                        for item in plant.get('data', []):
-                            key = item.get('key', '').lower().replace(' ', '_')
-                            value = item.get('value', '')
-                            plant_data[key] = value
-                        
-                        # Process the plant data
+                    for plant in permapeople_results:
+                        # Create a base plant object with the main fields
                         processed_plant = {
                             'id': plant.get('id'),
                             'name': plant.get('name', ''),
-                            'scientific_name': plant.get('slug', '').replace('-', ' ').title(),
-                            'image_url': plant.get('image_url'),
+                            'scientific_name': plant.get('scientific_name', ''),
+                            'image_url': plant.get('image_url', ''),
                             'description': plant.get('description', ''),
-                            'edible': plant_data.get('edible', ''),
-                            'water_requirement': plant_data.get('water_requirement', ''),
-                            'light_requirement': plant_data.get('light_requirement', ''),
-                            'hardiness_zone': plant_data.get('usda_hardiness_zone', ''),
-                            'layer': plant_data.get('layer', ''),
-                            'wikipedia': plant_data.get('wikipedia', ''),
+                            'data': plant.get('data', []),  # Include the entire data array
                             'source': 'permapeople'
                         }
+                        
+                        # Check if there's a Wikipedia link in the data
+                        wikipedia_url = None
+                        for item in processed_plant['data']:
+                            if item.get('key', '').lower() == 'wikipedia':
+                                wikipedia_url = item.get('value', '')
+                                break
+                        
+                        # If there's a Wikipedia link, try to get the first image
+                        if wikipedia_url:
+                            try:
+                                wikipedia_image = permapeople_api._get_wikipedia_image(processed_plant['scientific_name'])
+                                if wikipedia_image:
+                                    processed_plant['wikipedia_image'] = wikipedia_image
+                            except Exception as e:
+                                logger.error(f"Error fetching Wikipedia image: {str(e)}")
+                        
                         processed_plants.append(processed_plant)
                     
                     return render(request, 'main/permapeople_search.html', {
@@ -340,6 +343,7 @@ def search_plants(request):
                         'query': query
                     })
             except Exception as e:
+                logger.error(f"Error searching PermaPeople API: {str(e)}")
                 messages.error(request, f'Error searching PermaPeople API: {str(e)}')
                 return render(request, 'main/search_results.html', {
                     'plants': [],
