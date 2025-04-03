@@ -507,6 +507,18 @@
             window.addEventListener('popstate', function() {
                 loadingOverlay.classList.remove('active');
             });
+
+            // Handle AJAX requests
+            $(document).ajaxStart(function() {
+                loadingOverlay.classList.add('active');
+            }).ajaxStop(function() {
+                loadingOverlay.classList.remove('active');
+            });
+
+            // Ensure loading screen stays visible until page is fully loaded
+            window.addEventListener('beforeunload', function() {
+                loadingOverlay.classList.add('active');
+            });
         });
     </script>
 </body>
