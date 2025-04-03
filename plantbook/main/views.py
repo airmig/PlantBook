@@ -20,7 +20,6 @@ from django.db.models import Count
 from .forms import PlantForm, ObservationForm, PhotoForm
 from django.urls import reverse
 import logging
-import requests
 
 logger = logging.getLogger(__name__)
 
@@ -589,28 +588,16 @@ def add_permaplant(request):
                 logger.error("Missing required field: name")
                 return JsonResponse({'success': False, 'error': 'Missing required field: name'})
             
-            # Create the plant without the image first
+            # Create the plant
             plant = Plant.objects.create(
                 user=request.user,
                 name=name,
                 scientific_name=scientific_name,
+                image=image_url,
                 source='permapeople',
                 external_id=permaplant_id
             )
             logger.info(f"Created plant: ID={plant.id}, name={plant.name}")
-            
-            # If we have an image URL, download and save it
-            if image_url:
-                try:
-                    response = requests.get(image_url)
-                    if response.status_code == 200:
-                        # Generate a filename from the plant name
-                        filename = f"{name.lower().replace(' ', '_')}.jpg"
-                        # Save the image
-                        plant.image.save(filename, ContentFile(response.content), save=True)
-                        logger.info(f"Saved image for plant {plant.id}")
-                except Exception as e:
-                    logger.error(f"Error downloading image: {str(e)}")
             
             # Add description as a plant detail if it exists
             if description:

@@ -1,7 +1,9 @@
+version: '3.9'
+
 services:
   web:
     build: .
-    command: gunicorn plantbook.wsgi:application --bind 0.0.0.0:8000
+    command: gunicorn myproject.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - .:/app
     ports:
