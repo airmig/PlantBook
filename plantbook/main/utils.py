@@ -440,7 +440,8 @@ class PermaPeopleAPI:
                 'slug': response.get('slug'),
                 'updated_at': response.get('updated_at'),
                 'created_at': response.get('created_at'),
-                'data': response.get('data', [])
+                'data': response.get('data', []),
+                'image_url': None  # Initialize image_url as None
             }
             
             # Extract specific details from the data array
@@ -449,6 +450,14 @@ class PermaPeopleAPI:
                     key = item.get('key', '').lower().replace(' ', '_')
                     value = item.get('value', '')
                     plant_data[key] = value
+                    
+                    # Check if this is an image field
+                    if key == 'image' and value:
+                        plant_data['image_url'] = value
+            
+            # If no image URL found, try to get one from Wikipedia
+            if not plant_data['image_url'] and plant_data.get('scientific_name'):
+                plant_data['image_url'] = self._get_wikipedia_image(plant_data['scientific_name'])
             
             return plant_data
             

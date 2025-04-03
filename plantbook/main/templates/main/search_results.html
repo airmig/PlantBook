@@ -175,4 +175,13 @@
     }
 }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Hide loading screen when the page is fully loaded
+        $('#loading-screen').fadeOut();
+    });
+</script>
 {% endblock %} 

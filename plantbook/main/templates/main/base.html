@@ -301,9 +301,60 @@
                 text-align: center;
             }
         }
+
+        /* Loading overlay styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: #4CAF50;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Searching plants...</div>
+        </div>
+    </div>
+
     {% if user.is_authenticated %}
     <header class="header" style="max-height:81px">
         <div class="header-left">
@@ -311,7 +362,7 @@
                 <i class="fas fa-leaf"></i>
                 <span>PlantBook</span>
             </a>
-            <form action="{% url 'main:search_plants' %}" method="GET" class="search-form">
+            <form action="{% url 'main:search_plants' %}" method="GET" class="search-form" id="searchForm">
                 <input type="text" name="q" placeholder="Search plants..." value="{{ request.GET.q }}">
                 <button type="submit"><i class="fas fa-search"></i></button>
             </form>
@@ -345,7 +396,7 @@
                 <i class="fas fa-leaf"></i>
                 <span>PlantBook</span>
             </a>
-            <form action="{% url 'main:search_plants' %}" method="GET" class="search-form">
+            <form action="{% url 'main:search_plants' %}" method="GET" class="search-form" id="searchForm">
                 <input type="text" name="q" placeholder="Search plants..." value="{{ request.GET.q }}">
                 <button type="submit"><i class="fas fa-search"></i></button>
             </form>
@@ -390,6 +441,8 @@
 
     <!-- Custom JavaScript -->
     <script src="{% static 'main/js/flower-rain.js' %}"></script>
+    <script src="{% static 'main/js/search.js' %}"></script>
+    {% block extra_js %}{% endblock %}
 
     <footer class="footer">
         <div class="footer-content">
@@ -414,5 +467,47 @@
     </footer>
     {% include 'main/chat_popup.html' %}
     <script src="https://kit.fontawesome.com/your-font-awesome-kit.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchForm = document.getElementById('searchForm');
+            const loadingOverlay = document.querySelector('.loading-overlay');
+
+            if (searchForm) {
+                searchForm.addEventListener('submit', function(e) {
+                    // Show loading overlay immediately
+                    loadingOverlay.classList.add('active');
+                    
+                    // Prevent the form from submitting if it's an AJAX search
+                    if (window.location.pathname === '/search/') {
+                        e.preventDefault();
+                        const query = this.querySelector('input[name="q"]').value;
+                        performSearch(query);
+                    }
+                });
+            }
+
+            // Function to perform AJAX search
+            function performSearch(query) {
+                fetch(`/search/?q=${encodeURIComponent(query)}`)
+                    .then(response => response.text())
+                    .then(html => {
+                        // Update the content
+                        document.querySelector('main.container').innerHTML = html;
+                        // Hide loading overlay after content is updated
+                        loadingOverlay.classList.remove('active');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        loadingOverlay.classList.remove('active');
+                    });
+            }
+
+            // Handle browser back/forward navigation
+            window.addEventListener('popstate', function() {
+                loadingOverlay.classList.remove('active');
+            });
+        });
+    </script>
 </body>
 </html> 
