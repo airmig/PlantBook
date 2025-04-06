@@ -41,32 +41,273 @@
             </div>
         </div>
 
-        <div class="plant-content">
-            <div class="tab-buttons">
-                <button class="tab-button {% if active_tab == 'details' %}active{% endif %}" data-tab="details">
-                    <i class="fas fa-info-circle"></i> Details
-                </button>
-                <button class="tab-button {% if active_tab == 'observations' %}active{% endif %}" data-tab="observations">
-                    <i class="fas fa-clipboard-list"></i> Observations
-                </button>
-                <button class="tab-button {% if active_tab == 'photos' %}active{% endif %}" data-tab="photos">
-                    <i class="fas fa-images"></i> Photos
-                </button>
-                <button class="tab-button {% if active_tab == 'comments' %}active{% endif %}" data-tab="comments">
-                    <i class="fas fa-comments"></i> Comments
-                </button>
-                {% if user == plant.user %}
-                    <button class="tab-button {% if active_tab == 'settings' %}active{% endif %}" data-tab="settings">
-                        <i class="fas fa-cog"></i> Settings
+        <!-- Desktop View (Tabs) -->
+        <div class="desktop-view">
+            <div class="plant-content">
+                <div class="tab-buttons">
+                    <button class="tab-button {% if active_tab == 'details' %}active{% endif %}" data-tab="details">
+                        <i class="fas fa-info-circle"></i> Details
                     </button>
-                {% endif %}
-            </div>
+                    <button class="tab-button {% if active_tab == 'observations' %}active{% endif %}" data-tab="observations">
+                        <i class="fas fa-clipboard-list"></i> Observations
+                    </button>
+                    <button class="tab-button {% if active_tab == 'photos' %}active{% endif %}" data-tab="photos">
+                        <i class="fas fa-images"></i> Photos
+                    </button>
+                    <button class="tab-button {% if active_tab == 'comments' %}active{% endif %}" data-tab="comments">
+                        <i class="fas fa-comments"></i> Comments
+                    </button>
+                    {% if user == plant.user %}
+                        <button class="tab-button {% if active_tab == 'settings' %}active{% endif %}" data-tab="settings">
+                            <i class="fas fa-cog"></i> Settings
+                        </button>
+                    {% endif %}
+                </div>
 
-            <div class="tab-content">
-                <!-- Details Tab -->
-                <div class="tab-pane {% if active_tab == 'details' %}active{% endif %}" id="details">
+                <div class="tab-content">
+                    <!-- Details Tab -->
+                    <div class="tab-pane {% if active_tab == 'details' %}active{% endif %}" id="details">
+                        <div class="plant-details">
+                            <h3>Plant Details</h3>
+                            {% if details %}
+                                <div class="details-grid">
+                                    {% for detail in details %}
+                                        <div class="detail-item">
+                                            <div class="detail-header">
+                                                <h4>{{ detail.header }}</h4>
+                                                {% if user.is_authenticated and user == plant.user %}
+                                                    <form method="post" action="{% url 'main:delete_detail' plant.id detail.id %}" class="delete-form">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn-delete" title="Delete detail">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                            <p>{{ detail.information }}</p>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="no-data">No details available yet.</p>
+                            {% endif %}
+
+                            {% if user.is_authenticated and user == plant.user %}
+                                <form method="post" action="{% url 'main:add_detail' plant.id %}" class="add-detail-form mt-4">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="active_tab" value="details">
+                                    <div class="form-group">
+                                        <label for="header">Detail Title</label>
+                                        <input type="text" name="header" id="header" class="form-control" required placeholder="e.g., Watering Schedule, Light Requirements">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="information">Detail Information</label>
+                                        <textarea name="information" id="information" class="form-control" required placeholder="Enter the detail information here..."></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Add Detail</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Observations Tab -->
+                    <div class="tab-pane {% if active_tab == 'observations' %}active{% endif %}" id="observations">
+                        <div class="observations mt-4">
+                            <h3>Observations</h3>
+                            {% if observations %}
+                                <div class="observations-list">
+                                    {% for observation in observations %}
+                                        <div class="observation-item">
+                                            <div class="observation-header">
+                                                {% if user.is_authenticated and user == plant.user %}
+                                                    <form method="post" action="{% url 'main:delete_observation' plant.id observation.id %}" class="delete-form">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn-delete" title="Delete observation">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                            {% if observation.image %}
+                                                <div class="observation-image">
+                                                    <img src="{{ observation.image.url }}" alt="Observation">
+                                                </div>
+                                            {% endif %}
+                                            <div class="observation-content">
+                                                <p>{{ observation.note }}</p>
+                                                <span class="observation-date">{{ observation.created_at|date:"F j, Y" }}</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="no-data">No observations yet.</p>
+                            {% endif %}
+
+                            {% if user.is_authenticated and user == plant.user %}
+                                <form method="post" action="{% url 'main:add_observation' plant.id %}" class="add-observation-form mt-4" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="active_tab" value="observations">
+                                    {% for field in observation_form %}
+                                        <div class="form-group">
+                                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                            {{ field }}
+                                            {% if field.help_text %}
+                                                <small class="form-text text-muted">{{ field.help_text }}</small>
+                                            {% endif %}
+                                            {% if field.errors %}
+                                                <div class="alert alert-danger">
+                                                    {% for error in field.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                    <button type="submit" class="btn btn-primary w-100">Add Observation</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Photos Tab -->
+                    <div class="tab-pane {% if active_tab == 'photos' %}active{% endif %}" id="photos">
+                        <div class="photos mt-4">
+                            <h3>Photos</h3>
+                            {% if photos %}
+                                <div class="photos-grid">
+                                    {% for photo in photos %}
+                                        <div class="photo-card">
+                                            <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Plant photo' }}" onclick="openModal(this.src)">
+                                            {% if user.is_authenticated and user == plant.user %}
+                                                <form method="post" action="{% url 'main:delete_photo' plant.id photo.id %}" class="delete-form">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn-delete" title="Delete photo">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                            {% if photo.caption %}
+                                                <p class="photo-caption">{{ photo.caption }}</p>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="no-data">No additional photos yet.</p>
+                            {% endif %}
+
+                            {% if user.is_authenticated and user == plant.user %}
+                                <form method="post" action="{% url 'main:add_photo' plant.id %}" class="add-photo-form mt-4" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="active_tab" value="photos">
+                                    {% for field in photo_form %}
+                                        <div class="form-group">
+                                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                            {{ field }}
+                                            {% if field.help_text %}
+                                                <small class="form-text text-muted">{{ field.help_text }}</small>
+                                            {% endif %}
+                                            {% if field.errors %}
+                                                <div class="alert alert-danger">
+                                                    {% for error in field.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                    <button type="submit" class="btn btn-primary w-100">Add Photo</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Comments Tab -->
+                    <div class="tab-pane {% if active_tab == 'comments' %}active{% endif %}" id="comments">
+                        <div class="plant-comments">
+                            <h3>Comments</h3>
+                            {% if comments %}
+                                <div class="comments-list">
+                                    {% for comment in comments %}
+                                        <div class="comment-item">
+                                            <div class="comment-header">
+                                                <div class="comment-user-info">
+                                                    <div class="comment-profile-pic">
+                                                        {% if comment.user.profile.profile_photo %}
+                                                            <img src="{{ comment.user.profile.profile_photo.url }}" alt="{{ comment.user.get_full_name }}'s profile">
+                                                        {% else %}
+                                                            <i class="fas fa-user-circle"></i>
+                                                        {% endif %}
+                                                    </div>
+                                                    <a href="{% url 'main:user_profile' comment.user.id %}" class="comment-author">
+                                                        {{ comment.user.get_full_name|default:comment.user.username }}
+                                                    </a>
+                                                </div>
+                                                <span class="comment-date">{{ comment.created_at|date:"F j, Y" }}</span>
+                                                {% if user == plant.user %}
+                                                    <form method="post" action="{% url 'main:delete_comment' plant.id comment.id %}" class="delete-comment-form">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn-delete" title="Delete comment">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                            <p class="comment-content">{{ comment.content }}</p>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="no-data">No comments yet.</p>
+                            {% endif %}
+
+                            {% if user.is_authenticated %}
+                                <form method="post" action="{% url 'main:add_comment' plant.id %}" class="add-comment-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="active_tab" value="comments">
+                                    <div class="form-group">
+                                        <label for="comment">Add a Comment</label>
+                                        <textarea name="content" id="comment" required placeholder="Write your comment here..."></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Post Comment</button>
+                                </form>
+                            {% else %}
+                                <p class="login-prompt">Please <a href="{% url 'main:login' %}">login</a> to leave a comment.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Settings Tab -->
+                    <div class="tab-pane {% if active_tab == 'settings' %}active{% endif %}" id="settings">
+                        <div class="settings-section">
+                            <h3>Plant Settings</h3>
+                            {% if user == plant.user %}
+                                <div class="settings-options">
+                                    <a href="{% url 'main:edit_plant' plant.id %}" class="btn btn-primary">
+                                        <i class="fas fa-edit"></i> Edit Plant
+                                    </a>
+                                    <form method="post" action="{% url 'main:delete_plant' plant.id %}" class="delete-plant-form">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this plant? This action cannot be undone.')">
+                                            <i class="fas fa-trash"></i> Delete Plant
+                                        </button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile View (Vertical Layout) -->
+        <div class="mobile-view">
+            <!-- Details Section -->
+            <div class="section-container">
+                <h2 class="section-title"><i class="fas fa-info-circle"></i> Details</h2>
+                <div class="section-content">
                     <div class="plant-details">
-                        <h3>Plant Details</h3>
                         {% if details %}
                             <div class="details-grid">
                                 {% for detail in details %}
@@ -107,9 +348,12 @@
                         {% endif %}
                     </div>
                 </div>
+            </div>
 
-                <!-- Observations Tab -->
-                <div class="tab-pane {% if active_tab == 'observations' %}active{% endif %}" id="observations">
+            <!-- Observations Section -->
+            <div class="section-container">
+                <h2 class="section-title"><i class="fas fa-clipboard-list"></i> Observations</h2>
+                <div class="section-content">
                     <div class="observations mt-4">
                         <h3>Observations</h3>
                         {% if observations %}
@@ -167,9 +411,12 @@
                         {% endif %}
                     </div>
                 </div>
+            </div>
 
-                <!-- Photos Tab -->
-                <div class="tab-pane {% if active_tab == 'photos' %}active{% endif %}" id="photos">
+            <!-- Photos Section -->
+            <div class="section-container">
+                <h2 class="section-title"><i class="fas fa-images"></i> Photos</h2>
+                <div class="section-content">
                     <div class="photos mt-4">
                         <h3>Photos</h3>
                         {% if photos %}
@@ -220,9 +467,12 @@
                         {% endif %}
                     </div>
                 </div>
+            </div>
 
-                <!-- Comments Tab -->
-                <div class="tab-pane {% if active_tab == 'comments' %}active{% endif %}" id="comments">
+            <!-- Comments Section -->
+            <div class="section-container">
+                <h2 class="section-title"><i class="fas fa-comments"></i> Comments</h2>
+                <div class="section-content">
                     <div class="plant-comments">
                         <h3>Comments</h3>
                         {% if comments %}
@@ -275,27 +525,30 @@
                         {% endif %}
                     </div>
                 </div>
+            </div>
 
-                <!-- Settings Tab -->
-                <div class="tab-pane {% if active_tab == 'settings' %}active{% endif %}" id="settings">
+            {% if user == plant.user %}
+            <!-- Settings Section -->
+            <div class="section-container">
+                <h2 class="section-title"><i class="fas fa-cog"></i> Settings</h2>
+                <div class="section-content">
                     <div class="settings-section">
                         <h3>Plant Settings</h3>
-                        {% if user == plant.user %}
-                            <div class="settings-options">
-                                <a href="{% url 'main:edit_plant' plant.id %}" class="btn btn-primary">
-                                    <i class="fas fa-edit"></i> Edit Plant
-                                </a>
-                                <form method="post" action="{% url 'main:delete_plant' plant.id %}" class="delete-plant-form">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this plant? This action cannot be undone.')">
-                                        <i class="fas fa-trash"></i> Delete Plant
-                                    </button>
-                                </form>
-                            </div>
-                        {% endif %}
+                        <div class="settings-options">
+                            <a href="{% url 'main:edit_plant' plant.id %}" class="btn btn-primary">
+                                <i class="fas fa-edit"></i> Edit Plant
+                            </a>
+                            <form method="post" action="{% url 'main:delete_plant' plant.id %}" class="delete-plant-form">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this plant? This action cannot be undone.')">
+                                    <i class="fas fa-trash"></i> Delete Plant
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </main>
@@ -1213,7 +1466,6 @@ h3 {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .close-modal:hover {
@@ -1240,6 +1492,48 @@ h3 {
 @media (max-width: 480px) {
     .modal-content {
         max-width: 300px;
+    }
+}
+
+/* Desktop View (> 400px) */
+.desktop-view {
+    display: block;
+}
+.mobile-view {
+    display: none;
+}
+
+/* Mobile View (≤ 400px) */
+@media (max-width: 400px) {
+    .desktop-view {
+        display: none;
+    }
+    .mobile-view {
+        display: block;
+    }
+
+    .section-container {
+        margin-bottom: 2rem;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .section-title {
+        padding: 1rem;
+        margin: 0;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        font-size: 1.2rem;
+        color: #333;
+    }
+
+    .section-content {
+        padding: 1rem;
+    }
+
+    .section-container + .section-container {
+        margin-top: 1rem;
     }
 }
 </style>

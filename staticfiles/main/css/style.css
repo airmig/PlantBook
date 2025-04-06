@@ -631,4 +631,89 @@ textarea {
     .detail-card {
         margin: 0.5rem 0;
     }
+}
+
+/* Extra Small Device Styles (400px or less) */
+@media (max-width: 400px) {
+    .container {
+        padding: 0.5rem;
+        margin-top: 50px;
+    }
+
+    .tab-buttons {
+        display: none;
+    }
+
+    .tab-content {
+        padding: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    .tab-content > * {
+        margin-bottom: 1rem;
+    }
+
+    .detail-card {
+        padding: 0.75rem;
+        margin: 0.25rem 0;
+    }
+
+    .detail-card h3 {
+        font-size: 1rem;
+    }
+
+    .detail-card p {
+        font-size: 0.85rem;
+    }
+
+    .plant-details-container {
+        padding: 0.75rem;
+        margin: 0.25rem 0;
+    }
+
+    .plant-details-container h2 {
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .plant-details-container p {
+        font-size: 0.85rem;
+        margin: 0.25rem 0;
+    }
+
+    /* Adjust header for smaller devices */
+    .main-header {
+        padding: 0.75rem;
+    }
+
+    .header-title {
+        font-size: 1.2rem;
+    }
+
+    .header-logo {
+        width: 30px;
+        height: 30px;
+    }
+
+    /* Adjust grid items for smaller screens */
+    .plant-grid, .photo-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .plant-image, .photo-image {
+        height: 120px;
+    }
+
+    .plant-info {
+        padding: 0.75rem;
+    }
+
+    .plant-info h3 {
+        font-size: 1rem;
+    }
+
+    .scientific-name {
+        font-size: 0.8rem;
+    }
 } 
