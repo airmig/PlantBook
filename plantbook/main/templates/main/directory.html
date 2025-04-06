@@ -1,22 +1,21 @@
 {% extends 'main/base.html' %}
 {% load static %}
+{% load cloudinary %}
 
 {% block content %}
 <main class="container">
     <div class="directory-container">
-        <h1>User Directory</h1>
+        <h1 style="color: white;">User Directory</h1>
         
         <div class="users-grid">
             {% for user in users %}
             <div class="user-item" data-username="{{ user.username }}">
                 <div class="user-card">
-                    <div class="user-photo">
-                        {% if user.profile.profile_photo %}
-                            <img src="{{ user.profile.profile_photo.url }}" alt="{{ user.get_full_name }}" class="user-profile-photo">
-                        {% else %}
-                            <i class="fas fa-user-circle"></i>
-                        {% endif %}
-                    </div>
+                    {% if user.profile.profile_photo %}
+                        <div class="user-photo">
+                            {% cloudinary user.profile.profile_photo width=60 height=60 crop="fill" gravity="face" %}
+                        </div>
+                    {% endif %}
                     <div class="user-info">
                         <div class="user-name">{{ user.get_full_name }}</div>
                         <div class="user-stats">
@@ -35,27 +34,19 @@
         </div>
 
         {% if users.has_other_pages %}
-        <div class="pagination">
-            {% if users.has_previous %}
-                <a href="?page={{ users.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="page-link">
-                    <i class="fas fa-chevron-left"></i>
-                </a>
-            {% endif %}
-
-            {% for num in users.paginator.page_range %}
-                {% if users.number == num %}
-                    <span class="page-link active">{{ num }}</span>
-                {% else %}
-                    <a href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}" class="page-link">{{ num }}</a>
+            <div class="pagination">
+                {% if users.has_previous %}
+                    <a href="?page={{ users.previous_page_number }}" class="page-link">Previous</a>
                 {% endif %}
-            {% endfor %}
-
-            {% if users.has_next %}
-                <a href="?page={{ users.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="page-link">
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-            {% endif %}
-        </div>
+                
+                <span class="current-page">
+                    Page {{ users.number }} of {{ users.paginator.num_pages }}
+                </span>
+                
+                {% if users.has_next %}
+                    <a href="?page={{ users.next_page_number }}" class="page-link">Next</a>
+                {% endif %}
+            </div>
         {% endif %}
     </div>
 </main>
@@ -68,16 +59,13 @@
 }
 
 .directory-container h1 {
-    color: #ffffff;
     margin-bottom: 2rem;
-    text-align: center;
 }
 
 .users-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 2rem;
-    margin-bottom: 2rem;
+    gap: 1.5rem;
 }
 
 .user-card {
@@ -86,9 +74,8 @@
     padding: 1.5rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     display: flex;
-    flex-direction: column;
     align-items: center;
-    text-align: center;
+    gap: 1rem;
     transition: transform 0.2s;
 }
 
@@ -97,11 +84,14 @@
 }
 
 .user-photo {
-    width: 100px;
-    height: 100px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     overflow: hidden;
-    margin-bottom: 1rem;
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .user-photo img {
@@ -111,43 +101,48 @@
 }
 
 .user-photo i {
-    font-size: 5rem;
+    font-size: 3rem;
     color: #4CAF50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
 }
 
 .user-info {
-    margin-bottom: 1rem;
+    flex-grow: 1;
 }
 
 .user-name {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #333;
-    margin-bottom: 0.5rem;
-}
-
-.user-username {
-    color: #666;
+    font-weight: 600;
+    color: #2c3e50;
     margin-bottom: 0.5rem;
 }
 
 .user-stats {
-    color: #4CAF50;
+    color: #666;
     font-size: 0.9rem;
 }
 
+.user-stats i {
+    color: #4CAF50;
+    margin-right: 0.5rem;
+}
+
 .view-profile {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    background: #4CAF50;
-    color: white;
+    color: #4CAF50;
     text-decoration: none;
-    border-radius: 4px;
-    transition: background-color 0.2s;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border: 2px solid #4CAF50;
+    border-radius: 20px;
+    transition: all 0.2s;
 }
 
 .view-profile:hover {
-    background: #45a049;
+    background: #4CAF50;
+    color: white;
 }
 
 .no-results {
@@ -165,44 +160,49 @@
     margin-bottom: 1rem;
 }
 
+.no-results p {
+    color: #666;
+    margin: 0;
+}
+
 .pagination {
+    margin-top: 2rem;
     display: flex;
     justify-content: center;
-    gap: 0.5rem;
-    margin-top: 2rem;
+    align-items: center;
+    gap: 1rem;
 }
 
 .page-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    color: #333;
+    color: #4CAF50;
     text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 2px solid #4CAF50;
+    border-radius: 20px;
     transition: all 0.2s;
 }
 
 .page-link:hover {
-    background: #f5f5f5;
-}
-
-.page-link.active {
     background: #4CAF50;
     color: white;
-    border-color: #4CAF50;
+}
+
+.current-page {
+    color: #666;
 }
 
 @media (max-width: 768px) {
-    .directory-container {
-        padding: 1rem;
-    }
-    
     .users-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .user-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .view-profile {
+        margin-top: 1rem;
     }
 }
 </style>

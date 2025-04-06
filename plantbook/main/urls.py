@@ -12,6 +12,7 @@ urlpatterns = [
     path('upload-plant/', views.upload_plant, name='upload_plant'),
     path('search-plants/', views.search_plants, name='search_plants'),
     path('search-plants-api/', views.search_plants_api, name='search_plants_api'),
+    path('search-permapeople/', views.permapeople_search, name='permapeople_search'),
     path('plant/<int:plant_id>/', views.plant_detail, name='plant_detail'),
     path('plant/<int:plant_id>/edit/', views.edit_plant, name='edit_plant'),
     path('plant/<int:plant_id>/delete/', views.delete_plant, name='delete_plant'),

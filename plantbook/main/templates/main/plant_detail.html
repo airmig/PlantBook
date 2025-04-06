@@ -1,5 +1,6 @@
 {% extends 'main/base.html' %}
 {% load static %}
+{% load cloudinary %}
 
 {% block content %}
 <main class="container" style="padding-top: 2rem;">
@@ -14,8 +15,8 @@
 
         <div class="plant-header">
             <div class="plant-main-image">
-                {% if plant.image %}
-                    <img src="{{ plant.image.url }}" alt="{{ plant.name }}">
+                {% if plant.plant_photo %}
+                    <img src="{{ plant.plant_photo.url }}" alt="{{ plant.name }}">
                 {% else %}
                     <div class="no-image">
                         <i class="fas fa-leaf"></i>
@@ -29,7 +30,7 @@
                         <h2 class="scientific-name">{{ plant.scientific_name }}</h2>
                     {% endif %}
                     <p class="plant-date">Added on {{ plant.created_at|date:"F j, Y" }}</p>
-                    <p class="owner">By {{ plant.user.get_full_name|default:plant.user.email }}</p>
+                    <p class="owner">By {{ plant.owner.get_full_name|default:plant.owner.email }}</p>
                 </div>
                 <div class="qr-code-section">
                     <h3>Plant QR Code</h3>
@@ -57,7 +58,7 @@
                     <button class="tab-button {% if active_tab == 'comments' %}active{% endif %}" data-tab="comments">
                         <i class="fas fa-comments"></i> Comments
                     </button>
-                    {% if user == plant.user %}
+                    {% if user == plant.owner %}
                         <button class="tab-button {% if active_tab == 'settings' %}active{% endif %}" data-tab="settings">
                             <i class="fas fa-cog"></i> Settings
                         </button>
@@ -75,7 +76,7 @@
                                         <div class="detail-item">
                                             <div class="detail-header">
                                                 <h4>{{ detail.header }}</h4>
-                                                {% if user.is_authenticated and user == plant.user %}
+                                                {% if user.is_authenticated and user == plant.owner %}
                                                     <form method="post" action="{% url 'main:delete_detail' plant.id detail.id %}" class="delete-form">
                                                         {% csrf_token %}
                                                         <button type="submit" class="btn-delete" title="Delete detail">
@@ -92,7 +93,7 @@
                                 <p class="no-data">No details available yet.</p>
                             {% endif %}
 
-                            {% if user.is_authenticated and user == plant.user %}
+                            {% if user.is_authenticated and user == plant.owner %}
                                 <form method="post" action="{% url 'main:add_detail' plant.id %}" class="add-detail-form mt-4">
                                     {% csrf_token %}
                                     <input type="hidden" name="active_tab" value="details">
@@ -119,7 +120,7 @@
                                     {% for observation in observations %}
                                         <div class="observation-item">
                                             <div class="observation-header">
-                                                {% if user.is_authenticated and user == plant.user %}
+                                                {% if user.is_authenticated and user == plant.owner %}
                                                     <form method="post" action="{% url 'main:delete_observation' plant.id observation.id %}" class="delete-form">
                                                         {% csrf_token %}
                                                         <button type="submit" class="btn-delete" title="Delete observation">
@@ -144,7 +145,7 @@
                                 <p class="no-data">No observations yet.</p>
                             {% endif %}
 
-                            {% if user.is_authenticated and user == plant.user %}
+                            {% if user.is_authenticated and user == plant.owner %}
                                 <form method="post" action="{% url 'main:add_observation' plant.id %}" class="add-observation-form mt-4" enctype="multipart/form-data">
                                     {% csrf_token %}
                                     <input type="hidden" name="active_tab" value="observations">
@@ -179,7 +180,7 @@
                                     {% for photo in photos %}
                                         <div class="photo-card">
                                             <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Plant photo' }}" onclick="openModal(this.src)">
-                                            {% if user.is_authenticated and user == plant.user %}
+                                            {% if user.is_authenticated and user == plant.owner %}
                                                 <form method="post" action="{% url 'main:delete_photo' plant.id photo.id %}" class="delete-form">
                                                     {% csrf_token %}
                                                     <button type="submit" class="btn-delete" title="Delete photo">
@@ -197,7 +198,7 @@
                                 <p class="no-data">No additional photos yet.</p>
                             {% endif %}
 
-                            {% if user.is_authenticated and user == plant.user %}
+                            {% if user.is_authenticated and user == plant.owner %}
                                 <form method="post" action="{% url 'main:add_photo' plant.id %}" class="add-photo-form mt-4" enctype="multipart/form-data">
                                     {% csrf_token %}
                                     <input type="hidden" name="active_tab" value="photos">
@@ -235,7 +236,7 @@
                                                 <div class="comment-user-info">
                                                     <div class="comment-profile-pic">
                                                         {% if comment.user.profile.profile_photo %}
-                                                            <img src="{{ comment.user.profile.profile_photo.url }}" alt="{{ comment.user.get_full_name }}'s profile">
+                                                            {% cloudinary comment.user.profile.profile_photo width=32 height=32 crop="fill" gravity="face" %}
                                                         {% else %}
                                                             <i class="fas fa-user-circle"></i>
                                                         {% endif %}
@@ -245,7 +246,7 @@
                                                     </a>
                                                 </div>
                                                 <span class="comment-date">{{ comment.created_at|date:"F j, Y" }}</span>
-                                                {% if user == plant.user %}
+                                                {% if user == plant.owner %}
                                                     <form method="post" action="{% url 'main:delete_comment' plant.id comment.id %}" class="delete-comment-form">
                                                         {% csrf_token %}
                                                         <button type="submit" class="btn-delete" title="Delete comment">
@@ -282,7 +283,7 @@
                     <div class="tab-pane {% if active_tab == 'settings' %}active{% endif %}" id="settings">
                         <div class="settings-section">
                             <h3>Plant Settings</h3>
-                            {% if user == plant.user %}
+                            {% if user == plant.owner %}
                                 <div class="settings-options">
                                     <a href="{% url 'main:edit_plant' plant.id %}" class="btn btn-primary">
                                         <i class="fas fa-edit"></i> Edit Plant
@@ -314,7 +315,7 @@
                                     <div class="detail-item">
                                         <div class="detail-header">
                                             <h4>{{ detail.header }}</h4>
-                                            {% if user.is_authenticated and user == plant.user %}
+                                            {% if user.is_authenticated and user == plant.owner %}
                                                 <form method="post" action="{% url 'main:delete_detail' plant.id detail.id %}" class="delete-form">
                                                     {% csrf_token %}
                                                     <button type="submit" class="btn-delete" title="Delete detail">
@@ -331,7 +332,7 @@
                             <p class="no-data">No details available yet.</p>
                         {% endif %}
 
-                        {% if user.is_authenticated and user == plant.user %}
+                        {% if user.is_authenticated and user == plant.owner %}
                             <form method="post" action="{% url 'main:add_detail' plant.id %}" class="add-detail-form mt-4">
                                 {% csrf_token %}
                                 <input type="hidden" name="active_tab" value="details">
@@ -483,7 +484,7 @@
                                             <div class="comment-user-info">
                                                 <div class="comment-profile-pic">
                                                     {% if comment.user.profile.profile_photo %}
-                                                        <img src="{{ comment.user.profile.profile_photo.url }}" alt="{{ comment.user.get_full_name }}'s profile">
+                                                        {% cloudinary comment.user.profile.profile_photo width=32 height=32 crop="fill" gravity="face" %}
                                                     {% else %}
                                                         <i class="fas fa-user-circle"></i>
                                                     {% endif %}

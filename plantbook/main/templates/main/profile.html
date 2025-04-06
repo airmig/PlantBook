@@ -1,5 +1,6 @@
 {% extends 'main/base.html' %}
 {% load static %}
+{% load cloudinary %}
 
 {% block content %}
 <main class="container">
@@ -16,14 +17,11 @@
             <div class="profile-photo-section">
                 <div class="large-profile-photo">
                     {% if user.profile.profile_photo %}
-                        <img src="{{ user.profile.profile_photo.url }}" alt="Profile Photo">
+                        {% cloudinary user.profile.profile_photo width=150 height=150 crop="fill" gravity="face" %}
                     {% else %}
-                        <i class="fas fa-user"></i>
+                        <i class="fas fa-user-circle"></i>
                     {% endif %}
                 </div>
-                <label for="profile_photo" class="profile-photo-upload">
-                    <i class="fas fa-camera"></i>
-                </label>
             </div>
             <div class="profile-stats">
                 <div class="stat-item">
@@ -42,27 +40,41 @@
                 {% csrf_token %}
                 <div class="form-section">
                     <h3>Profile Information</h3>
-                    <input type="file" id="profile_photo" name="profile_photo" accept="image/*" onchange="previewImage(this)">
                     <div class="form-group">
                         <label for="first_name">First Name</label>
-                        <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}">
+                        <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" class="form-control">
                     </div>
                     <div class="form-group">
                         <label for="last_name">Last Name</label>
-                        <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}">
+                        <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}" class="form-control">
                     </div>
                     <div class="form-group">
                         <label for="email">Email</label>
-                        <input type="email" id="email" name="email" value="{{ user.email }}" required>
+                        <input type="email" id="email" name="email" value="{{ user.email }}" required class="form-control">
                     </div>
+                    
                     <div class="form-group">
-                        <label for="location">Location</label>
-                        <input type="text" id="location" name="location" value="{{ user.profile.location }}">
+                        <label for="profile_photo">Profile Photo</label>
+                        <input type="file" id="profile_photo" name="profile_photo" accept="image/*" class="form-control" onchange="previewImage(this)">
+                        <small class="form-text text-muted">Upload a new profile photo (JPG, PNG, GIF)</small>
                     </div>
-                    <div class="form-group">
-                        <label for="bio">Bio</label>
-                        <textarea id="bio" name="bio" rows="4">{{ user.profile.bio }}</textarea>
-                    </div>
+
+                    {% for field in form %}
+                        {% if field.name != 'profile_photo' %}
+                            <div class="form-group">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <small class="form-text text-muted">{{ field.help_text }}</small>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="alert alert-danger">
+                                        {{ field.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
                 </div>
 
                 <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -165,6 +177,7 @@ function previewImage(input) {
 
     .large-profile-photo i {
         font-size: 4rem;
+        color: #4CAF50;
     }
 
     .profile-stats {
@@ -222,11 +235,49 @@ function previewImage(input) {
 
     .form-group input[type="text"],
     .form-group input[type="email"],
+    .form-group input[type="file"],
     .form-group textarea {
         width: 100%;
         padding: 0.5rem;
         border: 1px solid #ddd;
         border-radius: 4px;
+    }
+
+    .form-group input[type="file"] {
+        padding: 0.25rem;
+    }
+
+    .btn-primary {
+        background-color: #4CAF50;
+        border-color: #4CAF50;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #45a049;
+        border-color: #45a049;
+    }
+
+    .alert {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 4px;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
     }
 
     .recent-plants {
@@ -252,17 +303,21 @@ function previewImage(input) {
         color: inherit;
     }
 
-    .plant-card img,
-    .plant-card .no-image {
+    .plant-card img {
         width: 100%;
-        height: 150px;
+        height: 200px;
         object-fit: cover;
-        background-color: #f8f9fa;
+    }
+
+    .no-image {
+        width: 100%;
+        height: 200px;
+        background: #f8f9fa;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 2rem;
-        color: #666;
+        color: #6c757d;
     }
 
     .plant-info {
@@ -275,59 +330,15 @@ function previewImage(input) {
     }
 
     .scientific-name {
+        margin: 0.5rem 0 0;
+        color: #6c757d;
         font-style: italic;
-        color: #666;
-        font-size: 0.9rem;
-        margin: 0.25rem 0 0;
     }
 
-    .btn-primary {
-        background-color: #4CAF50;
-        color: white;
-        padding: 0.75rem 1.5rem;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    .btn-primary:hover {
-        background-color: #45a049;
-    }
-
-    .profile-photo-upload {
-        position: absolute;
-        bottom: 0;
-        right: 0;
-        background: white;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    .profile-photo-upload:hover {
-        background-color: #e0e0e0;
-    }
-
-    .profile-photo-upload i {
-        font-size: 1.5rem;
-    }
-
-    @media (max-width: 768px) {
-        .profile-header {
-            flex-direction: column;
-            text-align: center;
-        }
-
-        .profile-content {
-            grid-template-columns: 1fr;
-        }
+    .no-content {
+        text-align: center;
+        color: #6c757d;
+        padding: 2rem;
     }
 </style>
 {% endblock %} 

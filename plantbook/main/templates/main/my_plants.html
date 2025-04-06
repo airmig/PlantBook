@@ -2,180 +2,61 @@
 {% load static %}
 
 {% block content %}
-<main class="container">
-    <div class="my-plants">
-        <div class="section-header">
-            <h1>My Plants</h1>
-            <p>Plants I've added to my collection</p>
-        </div>
-        
-        {% if plants %}
-            <div class="plants-grid">
-                {% for plant in plants %}
-                    <div class="plant-card">
-                        <a href="{% url 'main:plant_detail' plant.id %}" class="plant-link">
-                            {% if plant.image %}
-                                <img src="{{ plant.image.url }}" alt="{{ plant.name }}" class="plant-image">
-                            {% else %}
-                                <div class="plant-image-placeholder">
-                                    <i class="fas fa-leaf"></i>
-                                </div>
-                            {% endif %}
-                            <div class="plant-info">
-                                <h3>{{ plant.name }}</h3>
-                                <p class="scientific-name">{{ plant.scientific_name }}</p>
-                                <p class="date">Added on {{ plant.created_at|date:"M j, Y" }}</p>
-                            </div>
-                        </a>
+<div class="container mt-4">
+    <h2>My Plants</h2>
+    <div class="row">
+        {% for plant in plants %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                {% if plant.plant_photo %}
+                <img src="{{ plant.plant_photo.url }}" class="card-img-top" alt="{{ plant.name }}">
+                {% else %}
+                <div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 200px;">
+                    <i class="fas fa-leaf fa-3x text-muted"></i>
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ plant.name }}</h5>
+                    <p class="card-text text-muted">{{ plant.scientific_name }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'plant_detail' plant.id %}" class="btn btn-primary">View Details</a>
+                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ plant.id }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
-                {% endfor %}
+                </div>
             </div>
-        {% else %}
-            <div class="no-plants">
-                <i class="fas fa-leaf"></i>
-                <p>You haven't added any plants yet.</p>
-                <a href="{% url 'main:upload_plant' %}" class="btn-upload">
-                    <i class="fas fa-plus"></i>
-                    <span>Add Your First Plant</span>
-                </a>
+        </div>
+
+        <!-- Delete Modal -->
+        <div class="modal fade" id="deleteModal{{ plant.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ plant.id }}" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteModalLabel{{ plant.id }}">Delete Plant</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure you want to delete "{{ plant.name }}"?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <form method="post" action="{% url 'delete_plant' plant.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
             </div>
-        {% endif %}
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-center">You haven't added any plants yet.</p>
+            <div class="text-center">
+                <a href="{% url 'upload_plant' %}" class="btn btn-primary">Add Your First Plant</a>
+            </div>
+        </div>
+        {% endfor %}
     </div>
-</main>
-
-<style>
-.my-plants {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    padding: 2rem;
-    margin-top: 1rem;
-}
-
-.section-header {
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.section-header h1 {
-    color: #4CAF50;
-    margin-bottom: 0.5rem;
-}
-
-.section-header p {
-    color: #666;
-    font-size: 1.1rem;
-}
-
-.plants-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 2rem;
-}
-
-.plant-card {
-    background: #f8f8f8;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    transition: transform 0.2s;
-}
-
-.plant-card:hover {
-    transform: translateY(-5px);
-}
-
-.plant-link {
-    text-decoration: none;
-    color: inherit;
-    display: block;
-}
-
-.plant-image {
-    width: 100%;
-    height: 200px;
-    object-fit: cover;
-}
-
-.plant-image-placeholder {
-    width: 100%;
-    height: 200px;
-    background: #f5f5f5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #4CAF50;
-    font-size: 2.5rem;
-}
-
-.plant-info {
-    padding: 1rem;
-}
-
-.plant-info h3 {
-    margin: 0;
-    color: #333;
-    font-size: 1.1rem;
-}
-
-.scientific-name {
-    color: #666;
-    font-style: italic;
-    margin: 0.5rem 0;
-}
-
-.date {
-    color: #999;
-    font-size: 0.9rem;
-    margin: 0;
-}
-
-.no-plants {
-    text-align: center;
-    padding: 3rem;
-    background: #f8f8f8;
-    border-radius: 8px;
-}
-
-.no-plants i {
-    font-size: 3rem;
-    color: #4CAF50;
-    margin-bottom: 1rem;
-}
-
-.no-plants p {
-    color: #666;
-    font-size: 1.1rem;
-    margin-bottom: 1.5rem;
-}
-
-.btn-upload {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: #4CAF50;
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 25px;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.2s;
-}
-
-.btn-upload:hover {
-    background: #45a049;
-    transform: translateY(-2px);
-}
-
-@media (max-width: 768px) {
-    .my-plants {
-        padding: 1rem;
-    }
-
-    .plants-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-}
-</style>
+</div>
 {% endblock %} 

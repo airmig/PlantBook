@@ -2,9 +2,17 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv(override=True)
+
+# Log storage configuration
+logger.info("Checking storage configuration...")
+logger.info(f"SUPABASE_URL present: {'Yes' if os.getenv('SUPABASE_URL') else 'No'}")
+logger.info(f"SUPABASE_KEY present: {'Yes' if os.getenv('SUPABASE_KEY') else 'No'}")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,6 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'storages',  # Add django-storages
+    'cloudinary',  # Add cloudinary
     'main.apps.MainConfig',
 ]
 
@@ -110,7 +119,25 @@ STATICFILES_DIRS = [
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Media files configuration
-DEFAULT_FILE_STORAGE = 'plantbook.PlantBook.storage_backends.BackblazeB2Storage'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Supabase settings
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+# Storage settings
+DEFAULT_FILE_STORAGE = 'main.storage_backends.CloudinaryStorage'
+
+# Configure storage backends
+STORAGES = {
+    "default": {
+        "BACKEND": "main.storage_backends.CloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # WhiteNoise configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -131,25 +158,41 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
 
-# Logging configuration
+# Logging Configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
             'style': '{',
         },
     },
     'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'debug.log',
             'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
         },
     },
     'loggers': {
-        'main.utils': {  # This will catch logs from our utils.py
-            'handlers': ['console'],
+        'django': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'main': {
+            'handlers': ['file', 'console'],
             'level': 'DEBUG',
             'propagate': True,
         },

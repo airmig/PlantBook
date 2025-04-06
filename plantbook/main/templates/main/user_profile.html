@@ -1,5 +1,6 @@
 {% extends 'main/base.html' %}
 {% load static %}
+{% load cloudinary %}
 
 {% block content %}
 <main class="container" style="padding-top: 1rem;">
@@ -7,7 +8,7 @@
         <div class="profile-header">
             <div class="profile-photo">
                 {% if profile_user.profile.profile_photo %}
-                    <img src="{{ profile_user.profile.profile_photo.url }}" alt="{{ profile_user.get_full_name|default:profile_user.email }}">
+                    {% cloudinary profile_user.profile.profile_photo width=45 height=45 crop="fill" gravity="face" %}
                 {% else %}
                     <i class="fas fa-user-circle"></i>
                 {% endif %}

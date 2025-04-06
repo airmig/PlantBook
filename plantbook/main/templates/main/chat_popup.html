@@ -184,6 +184,51 @@
     background: #fff3e0;
 }
 
+.message-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.message-photo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.message-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.message-photo i {
+    font-size: 1.5rem;
+    color: #666;
+    display: none;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    line-height: 24px;
+}
+
+.message-sender {
+    font-weight: bold;
+}
+
+.message-content {
+    margin: 4px 0;
+}
+
+.message-time {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 4px;
+}
+
 .chat-input {
     padding: 10px;
     border-top: 1px solid #eee;
@@ -211,17 +256,6 @@
 
 .chat-input button:hover {
     background: #45a049;
-}
-
-.message-time {
-    font-size: 0.8rem;
-    color: #666;
-    margin-top: 4px;
-}
-
-.message-sender {
-    font-weight: bold;
-    margin-bottom: 4px;
 }
 
 .unread-badge {
@@ -559,9 +593,8 @@ document.addEventListener('DOMContentLoaded', function() {
             div.innerHTML = `
                 <div class="conversation-photo">
                     ${user && user.profile_photo ? 
-                        `<img src="${user.profile_photo}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" alt="${displayName}'s profile">` : 
-                        ''}
-                    <i class="fas fa-user-circle"></i>
+                        `<img src="${user.profile_photo}" alt="${displayName}'s profile" class="conversation-photo-img">` : 
+                        `<i class="fas fa-user-circle"></i>`}
                 </div>
                 <div class="conversation-info">
                     <div class="conversation-name">${displayName}</div>
@@ -649,8 +682,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get the sender's name from the users array
         const sender = message.is_sent ? 'You' : users.find(u => u.username === message.sender)?.name || message.sender;
         
+        // Get the profile photo URL
+        const photoUrl = message.is_sent ? message.sender_photo_url : message.recipient_photo_url;
+        
         messageDiv.innerHTML = `
-            <div class="message-sender">${sender}</div>
+            <div class="message-header">
+                <div class="message-photo">
+                    ${photoUrl ? 
+                        `<img src="${photoUrl}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" alt="${sender}'s profile">` : 
+                        ''}
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="message-sender">${sender}</div>
+            </div>
             <div class="message-content">${message.content}</div>
             <div class="message-time">${formattedTime}</div>
         `;
@@ -754,6 +798,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const user = users.find(u => u.username === username);
         const displayName = user ? user.name : username;
         
+        // Get the conversation data to access the profile photo URL
+        const conversation = conversations.get(username);
+        const lastMessage = conversation ? conversation.messages[conversation.messages.length - 1] : null;
+        const profilePhotoUrl = lastMessage ? 
+            (lastMessage.is_sent ? lastMessage.sender_photo_url : lastMessage.recipient_photo_url) : 
+            null;
+        
         const popup = document.createElement('div');
         popup.className = 'conversation-popup minimized';
         popup.id = `conversation-${username}`;
@@ -761,8 +812,8 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="chat-header">
                 <div class="header-user-info">
                     <div class="header-profile-container">
-                        ${user && user.profile_photo ? 
-                            `<img src="${user.profile_photo}" alt="${displayName}'s profile" class="header-profile-pic">` : 
+                        ${profilePhotoUrl ? 
+                            `<img src="${profilePhotoUrl}" alt="${displayName}'s profile" class="header-profile-pic">` : 
                             `<i class="fas fa-user-circle"></i>`}
                     </div>
                     <h3 style="color: white; margin: 0;">${displayName}</h3>

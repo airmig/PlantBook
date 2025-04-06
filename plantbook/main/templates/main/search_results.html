@@ -26,8 +26,8 @@
                 {% for plant in plants %}
                     <div class="plant-card">
                         <a href="{% url 'main:plant_detail' plant.id %}" class="plant-link">
-                            {% if plant.image %}
-                                <img src="{{ plant.image.url }}" alt="{{ plant.name }}" class="plant-image">
+                            {% if plant.plant_photo %}
+                                <img src="{{ plant.plant_photo.url }}" alt="{{ plant.name }}" class="plant-image">
                             {% else %}
                                 <div class="plant-image-placeholder">
                                     <i class="fas fa-leaf"></i>
@@ -36,7 +36,7 @@
                             <div class="plant-info">
                                 <h3>{{ plant.name }}</h3>
                                 <p class="scientific-name">{{ plant.scientific_name }}</p>
-                                <p class="owner">By {{ plant.user.get_full_name|default:plant.user.email }}</p>
+                                <p class="owner">By {{ plant.owner.get_full_name|default:plant.owner.email }}</p>
                             </div>
                         </a>
                     </div>

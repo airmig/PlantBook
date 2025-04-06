@@ -20,7 +20,7 @@
                 {% endif %}
             {% endfor %}
         {% endif %}
-        
+
         {% if plants %}
             <div class="plants-grid">
                 {% for plant in plants %}
@@ -51,13 +51,13 @@
                                     {% endfor %}
                                 </div>
                             </div>
-
+                            
                             <div class="button-group">
-                                <button class="btn btn-primary add-to-collection" data-plant-id="{{ plant.id }}" data-plant-name="{{ plant.name }}" data-plant-scientific-name="{{ plant.scientific_name }}">
+                                <button class="btn btn-primary add-plant-btn" onclick="addToCollection('{{ plant.id }}')">
                                     <i class="fas fa-plus"></i> Add to Collection
                                 </button>
-                                <button class="btn btn-secondary add-to-existing" data-plant-id="{{ plant.id }}" data-plant-name="{{ plant.name }}" data-plant-scientific-name="{{ plant.scientific_name }}">
-                                    <i class="fas fa-link"></i> Add to Existing Plant
+                                <button class="btn btn-outline-primary" onclick="showImportModal('{{ plant.id }}')">
+                                    <i class="fas fa-file-import"></i> Add to Existing
                                 </button>
                             </div>
                         </div>
@@ -74,17 +74,26 @@
     </div>
 </main>
 
-<!-- Modal for selecting an existing plant -->
-<div id="existingPlantModal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Select a Plant</h2>
-        <p>Choose a plant to import data from <span id="selectedPlantName"></span></p>
-        <div class="search-container">
-            <input type="text" id="plantSearch" placeholder="Search your plants...">
-        </div>
-        <div id="existingPlantsList" class="existing-plants-list">
-            <!-- Plants will be loaded here -->
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel">Import to Existing Plant</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="plantSelect" class="form-label">Select Plant</label>
+                    <select class="form-select" id="plantSelect">
+                        <option value="">Loading plants...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="importToPlant()">Import</button>
+            </div>
         </div>
     </div>
 </div>
@@ -209,19 +218,6 @@
     color: #333;
 }
 
-.wikipedia-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #4CAF50;
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.wikipedia-link:hover {
-    text-decoration: underline;
-}
-
 .button-group {
     display: flex;
     flex-direction: column;
@@ -251,6 +247,17 @@
 
 .btn-primary:hover {
     background-color: #45a049;
+}
+
+.btn-outline-primary {
+    background-color: transparent;
+    border: 2px solid #4CAF50;
+    color: #4CAF50;
+}
+
+.btn-outline-primary:hover {
+    background-color: #4CAF50;
+    color: white;
 }
 
 .btn-secondary {
@@ -287,91 +294,6 @@
     font-style: italic;
 }
 
-/* Modal styles */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.4);
-}
-
-.modal-content {
-    background-color: #fefefe;
-    margin: 10% auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    max-width: 600px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.close:hover,
-.close:focus {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.search-container {
-    margin: 20px 0;
-}
-
-#plantSearch {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 16px;
-}
-
-.existing-plants-list {
-    max-height: 300px;
-    overflow-y: auto;
-    border: 1px solid #eee;
-    border-radius: 4px;
-}
-
-.plant-item {
-    padding: 10px 15px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.plant-item:last-child {
-    border-bottom: none;
-}
-
-.plant-item:hover {
-    background-color: #f5f5f5;
-}
-
-.plant-item h4 {
-    margin: 0;
-    color: #333;
-}
-
-.plant-item p {
-    margin: 5px 0 0;
-    color: #666;
-    font-style: italic;
-    font-size: 0.9rem;
-}
-
 @media (max-width: 768px) {
     .search-results {
         padding: 1rem;
@@ -384,174 +306,152 @@
 }
 </style>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
+let currentPermaPlantId = null;
+let importModal = null;
+
+// Initialize the modal when the document is ready
 document.addEventListener('DOMContentLoaded', function() {
-    const addButtons = document.querySelectorAll('.add-to-collection');
-    const addToExistingButtons = document.querySelectorAll('.add-to-existing');
-    const modal = document.getElementById('existingPlantModal');
-    const closeBtn = document.querySelector('.close');
-    const plantSearch = document.getElementById('plantSearch');
-    const existingPlantsList = document.getElementById('existingPlantsList');
-    const selectedPlantName = document.getElementById('selectedPlantName');
-    
-    let currentPermaPlantId = null;
-    let currentPermaPlantName = null;
-    let currentPermaPlantScientificName = null;
-    
-    // Add to collection functionality
-    addButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const plantId = this.dataset.plantId;
-            const plantName = this.dataset.plantName;
-            const plantScientificName = this.dataset.plantScientificName;
-            
-            // Send request to add plant to collection
-            fetch('/add_permaplant/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    permaplant_id: plantId,
-                    name: plantName,
-                    scientific_name: plantScientificName
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Plant added to your collection successfully!');
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while adding the plant to your collection.');
-            });
+    // Get the modal element
+    const modalElement = document.getElementById('importModal');
+    if (modalElement) {
+        // Initialize the modal
+        importModal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: false
         });
-    });
-    
-    // Add to existing plant functionality
-    addToExistingButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            currentPermaPlantId = this.dataset.plantId;
-            currentPermaPlantName = this.dataset.plantName;
-            currentPermaPlantScientificName = this.dataset.plantScientificName;
-            
-            selectedPlantName.textContent = currentPermaPlantName;
-            modal.style.display = 'block';
-            
-            // Load user's plants
-            loadUserPlants();
-        });
-    });
-    
-    // Close modal when clicking the X
-    closeBtn.addEventListener('click', function() {
-        modal.style.display = 'none';
-    });
-    
-    // Close modal when clicking outside
-    window.addEventListener('click', function(event) {
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
-    });
-    
-    // Search functionality for existing plants
-    plantSearch.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase();
-        const plantItems = existingPlantsList.querySelectorAll('.plant-item');
-        
-        plantItems.forEach(item => {
-            const plantName = item.querySelector('h4').textContent.toLowerCase();
-            const scientificName = item.querySelector('p').textContent.toLowerCase();
-            
-            if (plantName.includes(searchTerm) || scientificName.includes(searchTerm)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
-        });
-    });
-    
-    // Function to load user's plants
-    function loadUserPlants() {
-        fetch('/get_user_plants/')
-            .then(response => response.json())
-            .then(data => {
-                existingPlantsList.innerHTML = '';
-                
-                if (data.plants && data.plants.length > 0) {
-                    data.plants.forEach(plant => {
-                        const plantItem = document.createElement('div');
-                        plantItem.className = 'plant-item';
-                        plantItem.innerHTML = `
-                            <h4>${plant.name}</h4>
-                            <p>${plant.scientific_name}</p>
-                        `;
-                        
-                        plantItem.addEventListener('click', function() {
-                            importToExistingPlant(plant.id);
-                        });
-                        
-                        existingPlantsList.appendChild(plantItem);
-                    });
-                } else {
-                    existingPlantsList.innerHTML = '<div class="plant-item">No plants found in your collection.</div>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                existingPlantsList.innerHTML = '<div class="plant-item">Error loading plants.</div>';
-            });
     }
-    
-    // Function to import data to existing plant
-    function importToExistingPlant(plantId) {
-        fetch('/import_permaplant/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                permaplant_id: currentPermaPlantId,
-                plant_id: plantId
-            })
+});
+
+function addToCollection(permaPlantId) {
+    fetch('{% url "main:add_permaplant" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            permaplant_id: permaPlantId
         })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = `/plant/${data.plant_id}/`;
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while adding the plant.');
+    });
+}
+
+function showImportModal(permaPlantId) {
+    currentPermaPlantId = permaPlantId;
+    
+    // Show loading state
+    const select = document.getElementById('plantSelect');
+    select.innerHTML = '<option value="">Loading plants...</option>';
+    
+    // Load user's plants
+    fetch('{% url "main:get_user_plants" %}')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                alert('Plant data imported successfully!');
-                modal.style.display = 'none';
+            select.innerHTML = '<option value="">Select a plant...</option>';
+            
+            if (data.plants && data.plants.length > 0) {
+                data.plants.forEach(plant => {
+                    const option = document.createElement('option');
+                    option.value = plant.id;
+                    option.textContent = `${plant.name} (${plant.scientific_name})`;
+                    select.appendChild(option);
+                });
             } else {
-                alert('Error: ' + data.error);
+                select.innerHTML = '<option value="">No plants found</option>';
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred while importing plant data.');
+            select.innerHTML = '<option value="">Error loading plants</option>';
+            alert('An error occurred while loading your plants.');
         });
+    
+    // Show the modal
+    if (importModal) {
+        importModal.show();
+    } else {
+        console.error('Modal not initialized');
+    }
+}
+
+function importToPlant() {
+    const plantId = document.getElementById('plantSelect').value;
+    if (!plantId) {
+        alert('Please select a plant.');
+        return;
     }
     
-    // Function to get CSRF token from cookies
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
+    // Disable the import button while processing
+    const importButton = document.querySelector('#importModal .btn-primary');
+    if (importButton) {
+        importButton.disabled = true;
+        importButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+    }
+    
+    fetch('{% url "main:import_permaplant" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            permaplant_id: currentPermaPlantId,
+            plant_id: plantId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = `/plant/${plantId}/`;
+        } else {
+            alert('Error: ' + data.error);
+            // Re-enable the import button
+            if (importButton) {
+                importButton.disabled = false;
+                importButton.innerHTML = 'Import';
             }
         }
-        return cookieValue;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while importing the plant data.');
+        // Re-enable the import button
+        if (importButton) {
+            importButton.disabled = false;
+            importButton.innerHTML = 'Import';
+        }
+    });
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
     }
-});
+    return cookieValue;
+}
 </script>
 {% endblock %} 

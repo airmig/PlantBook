@@ -17,9 +17,11 @@ from .utils import permapeople_api
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.db.models import Count
-from .forms import PlantForm, ObservationForm, PhotoForm
+from .forms import PlantForm, ObservationForm, PhotoForm, ProfileForm
 from django.urls import reverse
 import logging
+from django.core.paginator import PageNotAnInteger, EmptyPage
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -86,61 +88,53 @@ def login_view(request):
     return render(request, 'main/login.html')
 
 def home(request):
-    """Home page view"""
-    if request.user.is_authenticated:
-        plants = Plant.objects.filter(user=request.user).order_by('-created_at')
-    else:
-        plants = []
-    
-    # Get the 20 most recent plants from all users
-    recent_plants = Plant.objects.all().order_by('-created_at')[:20]
-    
-    return render(request, 'main/home.html', {
-        'plants': plants,
-        'recent_plants': recent_plants
-    })
+    try:
+        logger.info("Starting home view")
+        # Get all plants ordered by creation date
+        plants = Plant.objects.select_related('owner').order_by('-created_at')[:12]
+        # Get the most recent plants for the recent plants section
+        recent_plants = Plant.objects.select_related('owner').order_by('-created_at')[:10]
+        logger.debug(f"Retrieved {len(plants)} plants for home page")
+        return render(request, 'main/home.html', {
+            'plants': plants,
+            'recent_plants': recent_plants
+        })
+    except Exception as e:
+        logger.error(f"Error in home view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while loading the home page.')
+        return redirect('main:login')
 
 @login_required
 @csrf_protect
 def upload_plant(request):
-    """Handle plant upload and creation."""
-    if request.method == 'POST':
-        form = PlantForm(request.POST, request.FILES)
-        if form.is_valid():
-            try:
+    try:
+        logger.info(f"Starting upload_plant view for user {request.user.id}")
+        if request.method == 'POST':
+            form = PlantForm(request.POST, request.FILES)
+            if form.is_valid():
                 plant = form.save(commit=False)
-                plant.user = request.user
+                plant.owner = request.user
                 plant.save()
-                
-                # Handle plant details
-                detail_headers = request.POST.getlist('detail_header[]')
-                detail_information = request.POST.getlist('detail_information[]')
-                
-                for header, info in zip(detail_headers, detail_information):
-                    if header and info:
-                        PlantDetail.objects.create(
-                            plant=plant,
-                            header=header,
-                            information=info
-                        )
-                
+                logger.info(f"Successfully created plant {plant.id} for user {request.user.id}")
                 messages.success(request, 'Plant uploaded successfully!')
-                return redirect('main:plant_detail', plant_id=plant.id)
-                
-            except Exception as e:
-                messages.error(request, f'Error saving plant: {str(e)}')
-                return redirect('main:add_plant')
+                return redirect('main:plant_detail', plant.id)
+            else:
+                logger.warning(f"Invalid form submission for user {request.user.id}: {form.errors}")
         else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = PlantForm()
-    
-    return render(request, 'main/upload_plant.html', {'form': form})
+            form = PlantForm()
+        return render(request, 'main/upload_plant.html', {'form': form})
+    except Exception as e:
+        logger.error(f"Error in upload_plant view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while uploading the plant.')
+        return redirect('main:home')
 
 def plant_detail(request, plant_id):
-    """Display detailed information about a specific plant."""
     try:
-        plant = Plant.objects.get(id=plant_id)
+        logger.info(f"Starting plant_detail view for plant {plant_id}")
+        plant = get_object_or_404(Plant, id=plant_id)
+        logger.debug(f"Retrieved plant {plant_id} owned by user {plant.owner.id}")
         details = PlantDetail.objects.filter(plant=plant).order_by('-created_at')
         observations = Observation.objects.filter(plant=plant).order_by('-created_at')
         photos = PlantPhoto.objects.filter(plant=plant).order_by('-created_at')
@@ -164,82 +158,91 @@ def plant_detail(request, plant_id):
             'active_tab': active_tab,
         }
         return render(request, 'main/plant_detail.html', context)
-    except Plant.DoesNotExist:
-        messages.error(request, 'Plant not found.')
+    except Exception as e:
+        logger.error(f"Error in plant_detail view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while loading the plant details.')
         return redirect('main:home')
 
 @login_required
 def add_observation(request, plant_id):
-    """Add an observation to a plant."""
-    plant = get_object_or_404(Plant, id=plant_id, user=request.user)
-    
-    if request.method == 'POST':
-        form = ObservationForm(request.POST, request.FILES)
-        if form.is_valid():
-            observation = form.save(commit=False)
-            observation.plant = plant
-            observation.save()
-            messages.success(request, 'Observation added successfully!')
+    try:
+        logger.info(f"Starting add_observation view for plant {plant_id}")
+        plant = get_object_or_404(Plant, id=plant_id)
+        if request.method == 'POST':
+            form = ObservationForm(request.POST, request.FILES)
+            if form.is_valid():
+                observation = form.save(commit=False)
+                observation.plant = plant
+                observation.save()
+                logger.info(f"Successfully added observation {observation.id} for plant {plant_id}")
+                messages.success(request, 'Observation added successfully!')
+                return redirect('main:plant_detail', plant_id)
+            else:
+                logger.warning(f"Invalid observation form submission for plant {plant_id}: {form.errors}")
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
-            
-    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant.id})}?tab=observations")
+            form = ObservationForm()
+        return render(request, 'main/add_observation.html', {'form': form, 'plant': plant})
+    except Exception as e:
+        logger.error(f"Error in add_observation view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while adding the observation.')
+        return redirect('main:plant_detail', plant_id)
 
 @login_required
 def add_photo(request, plant_id):
-    """Add a photo to a plant."""
-    plant = get_object_or_404(Plant, id=plant_id, user=request.user)
-    
-    if request.method == 'POST':
-        form = PhotoForm(request.POST, request.FILES)
-        if form.is_valid():
-            photo = form.save(commit=False)
-            photo.plant = plant
-            photo.save()
-            messages.success(request, 'Photo added successfully!')
+    try:
+        logger.info(f"Starting add_photo view for plant {plant_id}")
+        plant = get_object_or_404(Plant, id=plant_id)
+        if request.method == 'POST':
+            form = PhotoForm(request.POST, request.FILES)
+            if form.is_valid():
+                photo = form.save(commit=False)
+                photo.plant = plant
+                photo.save()
+                logger.info(f"Successfully added photo {photo.id} for plant {plant_id}")
+                messages.success(request, 'Photo added successfully!')
+                return redirect('main:plant_detail', plant_id)
+            else:
+                logger.warning(f"Invalid photo form submission for plant {plant_id}: {form.errors}")
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
-            
-    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant.id})}?tab=photos")
+            form = PhotoForm()
+        return render(request, 'main/add_photo.html', {'form': form, 'plant': plant})
+    except Exception as e:
+        logger.error(f"Error in add_photo view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while adding the photo.')
+        return redirect('main:plant_detail', plant_id)
 
 @login_required
 @csrf_protect
 def profile(request):
-    """Display and update user profile."""
-    if request.method == 'POST':
-        # Update profile information
-        profile = request.user.profile
+    try:
+        logger.info(f"Starting profile view for user {request.user.id}")
+        if request.method == 'POST':
+            form = ProfileForm(request.POST, request.FILES, instance=request.user.profile)
+            if form.is_valid():
+                form.save()
+                logger.info(f"Successfully updated profile for user {request.user.id}")
+                messages.success(request, 'Profile updated successfully!')
+                return redirect('main:profile')
+            else:
+                logger.warning(f"Invalid profile form submission for user {request.user.id}: {form.errors}")
+        else:
+            form = ProfileForm(instance=request.user.profile)
         
-        # Update profile photo if provided
-        if 'profile_photo' in request.FILES:
-            profile.profile_photo = request.FILES['profile_photo']
+        plants_count = Plant.objects.filter(owner=request.user).count()
+        logger.debug(f"Retrieved {plants_count} plants for user {request.user.id}")
         
-        # Update other profile fields
-        profile.bio = request.POST.get('bio', '')
-        profile.location = request.POST.get('location', '')
-        profile.save()
-        
-        # Update user information
-        request.user.first_name = request.POST.get('first_name', '')
-        request.user.last_name = request.POST.get('last_name', '')
-        request.user.email = request.POST.get('email', '')
-        request.user.save()
-        
-        messages.success(request, 'Profile updated successfully!')
-        return redirect('main:profile')
-    
-    # Get user's plants count and latest plants
-    plants_count = Plant.objects.filter(user=request.user).count()
-    latest_plants = Plant.objects.filter(user=request.user).order_by('-created_at')[:3]
-    
-    return render(request, 'main/profile.html', {
-        'plants_count': plants_count,
-        'latest_plants': latest_plants,
-    })
+        return render(request, 'main/profile.html', {
+            'form': form,
+            'plants_count': plants_count
+        })
+    except Exception as e:
+        logger.error(f"Error in profile view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while loading your profile.')
+        return redirect('main:home')
 
 def logout_view(request):
     logout(request)
@@ -286,130 +289,107 @@ def search_plants_api(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 def search_plants(request):
-    """Search plants in our database and PermaPeople API"""
-    query = request.GET.get('q', '')
-    
-    # Clear any existing messages when starting a new search
-    storage = messages.get_messages(request)
-    for _ in storage:
-        pass
-    
-    if query:
-        # First search in our database
-        plants = Plant.objects.filter(
-            Q(name__icontains=query) |
-            Q(scientific_name__icontains=query)
-        ).order_by('-created_at')
+    try:
+        logger.info("Starting search_plants view")
+        query = request.GET.get('q', '')
+        if query:
+            plants = Plant.objects.filter(
+                Q(name__icontains=query) |
+                Q(scientific_name__icontains=query)
+            ).select_related('owner')
+            logger.debug(f"Found {plants.count()} plants matching query: {query}")
+            
+            # If no local plants found, redirect to PermaPeople search
+            if not plants.exists():
+                logger.info(f"No local plants found for query '{query}', redirecting to PermaPeople search")
+                return redirect(f"{reverse('main:permapeople_search')}?q={query}")
+        else:
+            plants = []
+            logger.debug("No search query provided")
         
-        # If no results found in our database, search PermaPeople API
-        if not plants.exists():
-            try:
-                permapeople_results = permapeople_api.search_plants(query)
-                if permapeople_results:
-                    # Process the PermaPeople results
-                    processed_plants = []
-                    for plant in permapeople_results:
-                        # Create a base plant object with the main fields
-                        processed_plant = {
-                            'id': plant.get('id'),
-                            'name': plant.get('name', ''),
-                            'scientific_name': plant.get('scientific_name', ''),
-                            'image_url': plant.get('image_url', ''),
-                            'description': plant.get('description', ''),
-                            'data': plant.get('data', []),  # Include the entire data array
-                            'source': 'permapeople'
-                        }
-                        
-                        # Check if there's a Wikipedia link in the data
-                        wikipedia_url = None
-                        for item in processed_plant['data']:
-                            if item.get('key', '').lower() == 'wikipedia':
-                                wikipedia_url = item.get('value', '')
-                                break
-                        
-                        # If there's a Wikipedia link, try to get the first image
-                        if wikipedia_url:
-                            try:
-                                wikipedia_image = permapeople_api._get_wikipedia_image(processed_plant['scientific_name'])
-                                if wikipedia_image:
-                                    processed_plant['wikipedia_image'] = wikipedia_image
-                            except Exception as e:
-                                logger.error(f"Error fetching Wikipedia image: {str(e)}")
-                        
-                        processed_plants.append(processed_plant)
-                    
-                    return render(request, 'main/permapeople_search.html', {
-                        'plants': processed_plants,
-                        'query': query
-                    })
-            except Exception as e:
-                logger.error(f"Error searching PermaPeople API: {str(e)}")
-                messages.error(request, f'Error searching PermaPeople API: {str(e)}')
-                return render(request, 'main/search_results.html', {
-                    'plants': [],
-                    'query': query
-                })
-    else:
-        plants = Plant.objects.all().order_by('-created_at')
-    
-    return render(request, 'main/search_results.html', {
-        'plants': plants,
-        'query': query
-    })
+        return render(request, 'main/search_results.html', {
+            'plants': plants,
+            'query': query
+        })
+    except Exception as e:
+        logger.error(f"Error in search_plants view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while searching for plants.')
+        return redirect('main:home')
 
 def directory(request):
-    search_query = request.GET.get('q', '')
-    per_page = int(request.GET.get('per_page', 12))
-    page = request.GET.get('page', 1)
+    try:
+        logger.info("Starting directory view")
+        search_query = request.GET.get('q', '')
+        per_page = int(request.GET.get('per_page', 12))
+        page = request.GET.get('page', 1)
 
-    # Get all users with their plant counts
-    users = User.objects.annotate(plant_count=Count('plant')).order_by('-plant_count')
+        # Get all users with their plant counts and prefetch profiles
+        users = User.objects.select_related('profile').annotate(plant_count=Count('plant')).order_by('-plant_count')
+        logger.debug(f"Retrieved {users.count()} users for directory")
 
-    # Apply search filter if query exists
-    if search_query:
-        users = users.filter(
-            Q(first_name__icontains=search_query) |
-            Q(last_name__icontains=search_query) |
-            Q(email__icontains=search_query)
-        )
+        # Apply search filter if query exists
+        if search_query:
+            users = users.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(email__icontains=search_query)
+            )
+            logger.debug(f"Applied search filter: {search_query}")
 
-    # Paginate results
-    paginator = Paginator(users, per_page)
-    users = paginator.get_page(page)
+        # Paginate results
+        paginator = Paginator(users, per_page)
+        try:
+            users = paginator.get_page(page)
+            logger.debug(f"Retrieved page {page} of {paginator.num_pages}")
+        except (PageNotAnInteger, EmptyPage):
+            users = paginator.get_page(1)
+            logger.warning(f"Invalid page number {page}, defaulting to page 1")
 
-    context = {
-        'users': users,
-        'search_query': search_query,
-    }
-    return render(request, 'main/directory.html', context)
+        context = {
+            'users': users,
+            'search_query': search_query,
+        }
+        return render(request, 'main/directory.html', context)
+    except Exception as e:
+        logger.error(f"Error in directory view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while loading the directory.')
+        return redirect('main:home')
 
 @login_required
 def my_plants(request):
-    """Display all plants owned by the current user."""
-    plants = Plant.objects.filter(user=request.user).order_by('-created_at')
-    return render(request, 'main/my_plants.html', {
-        'plants': plants
-    })
+    try:
+        logger.info(f"Starting my_plants view for user {request.user.id}")
+        plants = Plant.objects.filter(owner=request.user).order_by('-created_at')
+        logger.debug(f"Retrieved {plants.count()} plants for user {request.user.id}")
+        return render(request, 'main/my_plants.html', {'plants': plants})
+    except Exception as e:
+        logger.error(f"Error in my_plants view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while loading your plants.')
+        return redirect('main:home')
 
 def user_profile(request, user_id):
-    """Display a user's profile and their plants."""
     try:
-        user = User.objects.get(id=user_id)
-        plants = Plant.objects.filter(user=user).order_by('-created_at')
-        
-        context = {
-            'profile_user': user,
-            'plants': plants,
-        }
-        return render(request, 'main/user_profile.html', context)
-    except User.DoesNotExist:
-        messages.error(request, 'User not found.')
+        logger.info(f"Starting user_profile view for user {user_id}")
+        profile_user = get_object_or_404(User, id=user_id)
+        plants = Plant.objects.filter(owner=profile_user)
+        logger.debug(f"Retrieved {plants.count()} plants for user {user_id}")
+        return render(request, 'main/user_profile.html', {
+            'profile_user': profile_user,
+            'plants': plants
+        })
+    except Exception as e:
+        logger.error(f"Error in user_profile view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while loading the user profile.')
         return redirect('main:directory')
 
 @login_required
 def edit_plant(request, plant_id):
     """Edit a specific plant."""
-    plant = get_object_or_404(Plant, id=plant_id, user=request.user)
+    plant = get_object_or_404(Plant, id=plant_id, owner=request.user)
     
     if request.method == 'POST':
         form = PlantForm(request.POST, request.FILES, instance=plant)
@@ -459,47 +439,55 @@ def delete_detail(request, plant_id, detail_id):
 
 @login_required
 def delete_observation(request, plant_id, observation_id):
-    """Delete a plant observation."""
-    observation = get_object_or_404(Observation, id=observation_id, plant__id=plant_id)
-    if request.user == observation.plant.user:
+    try:
+        logger.info(f"Starting delete_observation view for observation {observation_id}")
+        observation = get_object_or_404(Observation, id=observation_id, plant_id=plant_id)
         observation.delete()
+        logger.info(f"Successfully deleted observation {observation_id}")
         messages.success(request, 'Observation deleted successfully!')
-    else:
-        messages.error(request, 'You do not have permission to delete this observation.')
-    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant_id})}?tab=observations")
+        return redirect('main:plant_detail', plant_id)
+    except Exception as e:
+        logger.error(f"Error in delete_observation view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while deleting the observation.')
+        return redirect('main:plant_detail', plant_id)
 
 @login_required
 def delete_photo(request, plant_id, photo_id):
-    """Delete a plant photo."""
-    photo = get_object_or_404(PlantPhoto, id=photo_id, plant__id=plant_id)
-    if request.user == photo.plant.user:
+    try:
+        logger.info(f"Starting delete_photo view for photo {photo_id}")
+        photo = get_object_or_404(PlantPhoto, id=photo_id, plant_id=plant_id)
         photo.delete()
+        logger.info(f"Successfully deleted photo {photo_id}")
         messages.success(request, 'Photo deleted successfully!')
-    else:
-        messages.error(request, 'You do not have permission to delete this photo.')
-    return redirect(f"{reverse('main:plant_detail', kwargs={'plant_id': plant_id})}?tab=photos")
+        return redirect('main:plant_detail', plant_id)
+    except Exception as e:
+        logger.error(f"Error in delete_photo view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while deleting the photo.')
+        return redirect('main:plant_detail', plant_id)
 
 @login_required
 def delete_plant(request, plant_id):
-    """Delete a plant and all its associated data."""
-    plant = get_object_or_404(Plant, id=plant_id, user=request.user)
-    
-    if request.method == 'POST':
-        try:
-            # Delete the plant (this will cascade delete all related objects)
-            plant.delete()
-            messages.success(request, 'Plant deleted successfully!')
-        except Exception as e:
-            messages.error(request, f'Error deleting plant: {str(e)}')
-    
-    return redirect('main:home')
+    try:
+        logger.info(f"Starting delete_plant view for plant {plant_id}")
+        plant = get_object_or_404(Plant, id=plant_id, owner=request.user)
+        plant.delete()
+        logger.info(f"Successfully deleted plant {plant_id}")
+        messages.success(request, 'Plant deleted successfully!')
+        return redirect('main:my_plants')
+    except Exception as e:
+        logger.error(f"Error in delete_plant view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while deleting the plant.')
+        return redirect('main:my_plants')
 
 @login_required
 def get_messages(request):
     """Get all messages for the current user."""
     messages = Message.objects.filter(
         Q(sender=request.user) | Q(recipient=request.user)
-    ).select_related('sender', 'recipient')
+    ).select_related('sender', 'recipient', 'sender__profile', 'recipient__profile')
     
     messages_data = [{
         'id': msg.id,
@@ -508,7 +496,9 @@ def get_messages(request):
         'recipient': msg.recipient.username,
         'timestamp': msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
         'is_read': msg.is_read,
-        'is_sent': msg.sender == request.user
+        'is_sent': msg.sender == request.user,
+        'sender_photo_url': msg.sender.profile.profile_photo.url if msg.sender.profile.profile_photo else None,
+        'recipient_photo_url': msg.recipient.profile.profile_photo.url if msg.recipient.profile.profile_photo else None
     } for msg in messages]
     
     return JsonResponse({'messages': messages_data})
@@ -537,7 +527,9 @@ def send_message(request):
                 'recipient': message.recipient.username,
                 'timestamp': message.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
                 'is_read': message.is_read,
-                'is_sent': True
+                'is_sent': True,
+                'sender_photo_url': message.sender.profile.profile_photo.url if message.sender.profile.profile_photo else None,
+                'recipient_photo_url': message.recipient.profile.profile_photo.url if message.recipient.profile.profile_photo else None
             }
         })
     except Exception as e:
@@ -588,16 +580,42 @@ def add_permaplant(request):
                 logger.error("Missing required field: name")
                 return JsonResponse({'success': False, 'error': 'Missing required field: name'})
             
-            # Create the plant
+            # Create the plant with empty plant_photo initially
             plant = Plant.objects.create(
-                user=request.user,
+                owner=request.user,
                 name=name,
                 scientific_name=scientific_name,
-                image=image_url,
-                source='permapeople',
-                external_id=permaplant_id
+                description=description,
+                plant_photo=None  # We'll handle the photo separately
             )
             logger.info(f"Created plant: ID={plant.id}, name={plant.name}")
+            
+            # If we have an image URL, upload it to Cloudinary
+            if image_url:
+                try:
+                    # Download the image from the URL
+                    import requests
+                    response = requests.get(image_url)
+                    if response.status_code == 200:
+                        # Upload to Cloudinary
+                        from cloudinary.uploader import upload
+                        from cloudinary.utils import cloudinary_url
+                        
+                        # Upload the image
+                        upload_result = upload(
+                            response.content,
+                            folder='plantbook/plants',
+                            public_id=f'plant_{plant.id}'
+                        )
+                        
+                        # Update the plant with the Cloudinary URL
+                        plant.plant_photo = upload_result['public_id']
+                        plant.save()
+                        logger.info(f"Successfully uploaded plant photo to Cloudinary: {plant.plant_photo}")
+                    else:
+                        logger.warning(f"Failed to download image from URL: {image_url}")
+                except Exception as e:
+                    logger.error(f"Error uploading plant photo to Cloudinary: {str(e)}")
             
             # Add description as a plant detail if it exists
             if description:
@@ -675,7 +693,7 @@ def add_permaplant(request):
 @login_required
 def get_user_plants(request):
     """Get all plants in the user's collection for the modal selection."""
-    plants = Plant.objects.filter(user=request.user).order_by('name')
+    plants = Plant.objects.filter(owner=request.user).order_by('name')
     plants_data = [{'id': plant.id, 'name': plant.name, 'scientific_name': plant.scientific_name} for plant in plants]
     return JsonResponse({'plants': plants_data})
 
@@ -692,7 +710,7 @@ def import_permaplant(request):
             return JsonResponse({'success': False, 'error': 'Missing required fields'})
         
         # Get the existing plant
-        plant = get_object_or_404(Plant, id=plant_id, user=request.user)
+        plant = get_object_or_404(Plant, id=plant_id, owner=request.user)
         
         # Get details from PermaPeople API
         try:
@@ -739,11 +757,15 @@ def import_permaplant(request):
                         information=value
                     )
             
-            # Update plant source if not already set
-            if not plant.source:
-                plant.source = 'permapeople'
-                plant.external_id = permaplant_id
+            # Try to update source and external_id if they exist
+            try:
+                if hasattr(plant, 'source') and not plant.source:
+                    plant.source = 'permapeople'
+                if hasattr(plant, 'external_id') and not plant.external_id:
+                    plant.external_id = permaplant_id
                 plant.save()
+            except Exception as e:
+                logger.warning(f"Could not update source/external_id fields: {str(e)}")
             
             return JsonResponse({'success': True})
             
@@ -757,3 +779,27 @@ def import_permaplant(request):
     except Exception as e:
         logger.error(f"Error in import_permaplant: {str(e)}")
         return JsonResponse({'success': False, 'error': str(e)})
+
+def permapeople_search(request):
+    """Search for plants using the PermaPeople API"""
+    try:
+        logger.info("Starting permapeople_search view")
+        query = request.GET.get('q', '')
+        
+        if query:
+            logger.info(f"Searching PermaPeople API with query: {query}")
+            plants = permapeople_api.search_plants(query)
+            logger.debug(f"Found {len(plants)} plants matching query: {query}")
+        else:
+            plants = []
+            logger.debug("No search query provided")
+        
+        return render(request, 'main/permapeople_search.html', {
+            'plants': plants,
+            'query': query
+        })
+    except Exception as e:
+        logger.error(f"Error in permapeople_search view: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        messages.error(request, 'An error occurred while searching the PermaPeople database.')
+        return redirect('main:home')
