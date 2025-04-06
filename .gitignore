@@ -56,6 +56,5 @@ docs/_build/
 .DS_Store
 
 plantbook/db.sqlite3
-plantbook/PlantBook/settings.py
 
 .env
